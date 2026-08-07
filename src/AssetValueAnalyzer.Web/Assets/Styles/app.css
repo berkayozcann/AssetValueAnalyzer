@@ -33,8 +33,8 @@
     margin: 0;
     color: #f8fafc;
     background:
-      radial-gradient(circle at 85% 0%, rgb(18 52 100 / 24%), transparent 32rem),
-      linear-gradient(145deg, #030918 0%, #020817 58%, #061126 100%);
+      radial-gradient(circle at 85% 0%, rgb(25 62 113 / 28%), transparent 32rem),
+      linear-gradient(145deg, #061023 0%, #040b1b 58%, #08162d 100%);
   }
 
   button,
@@ -65,6 +65,10 @@
     margin-inline: auto;
   }
 
+  .site-header {
+    background: rgb(2 8 23 / 96%);
+  }
+
   .glass-panel {
     border: 1px solid rgb(70 104 173 / 58%);
     background:
@@ -72,6 +76,53 @@
       radial-gradient(circle at 0% 100%, rgb(40 80 167 / 24%), transparent 15rem),
       linear-gradient(135deg, rgb(10 27 64 / 96%), rgb(7 20 48 / 96%));
     box-shadow: 0 30px 90px rgb(0 0 0 / 34%);
+  }
+
+  .report-builder-panel {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .report-builder-panel::before,
+  .report-builder-panel::after {
+    position: absolute;
+    z-index: -1;
+    width: 18rem;
+    height: 18rem;
+    border: 1px solid rgb(95 114 246 / 12%);
+    border-radius: 999px;
+    background: rgb(51 82 173 / 13%);
+    content: "";
+  }
+
+  .report-builder-panel::before {
+    right: -9rem;
+    top: 5rem;
+  }
+
+  .report-builder-panel::after {
+    bottom: -10rem;
+    left: -8rem;
+  }
+
+  .report-builder-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (min-width: 640px) {
+    .wizard-stage {
+      display: flex;
+      flex-direction: column;
+      min-height: 25rem;
+    }
+  }
+
+  .month-picker-panel,
+  .date-range-panel {
+    border: 1px solid rgb(75 104 157 / 72%);
+    background: #071126;
+    box-shadow: 0 24px 70px rgb(0 0 0 / 62%);
   }
 
   .surface-card {

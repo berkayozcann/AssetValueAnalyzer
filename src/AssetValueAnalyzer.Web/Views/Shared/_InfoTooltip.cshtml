@@ -1,14 +1,16 @@
 @using AssetValueAnalyzer.Web.Features.Shared
 @model InfoTooltipViewModel
 
-<span class="group relative inline-flex align-middle">
+<span class="relative inline-flex align-middle" data-info-tooltip>
     <button type="button"
             class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400/75 text-[0.6rem] font-semibold text-slate-300 transition hover:border-accent-300 hover:text-accent-300"
             aria-label="@Model.Label açıklaması">
         i
     </button>
     <span role="tooltip"
-          class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-72 -translate-x-1/2 rounded-lg border border-line-700 bg-surface-900 px-3 py-2 text-left text-xs font-normal leading-relaxed text-slate-200 shadow-2xl group-hover:block group-focus-within:block">
+          class="pointer-events-none fixed z-[100] w-72 rounded-lg border border-line-700 bg-[#071126] px-3 py-2 text-left text-xs font-normal leading-relaxed text-slate-200 shadow-2xl"
+          hidden
+          data-info-tooltip-content>
         <strong class="mb-1 block text-white">@Model.Label</strong>
         @Model.Description
     </span>
