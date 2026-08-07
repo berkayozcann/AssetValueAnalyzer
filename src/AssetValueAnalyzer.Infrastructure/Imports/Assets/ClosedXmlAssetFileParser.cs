@@ -8,6 +8,9 @@ public sealed class ClosedXmlAssetFileParser : IAssetFileParser
     private const string ExpectedWorksheetName = "Varlık Tablosu";
     private const string ExpectedDateHeader = "Tarih";
     private const string ExpectedAmountHeader = "Varlık Tutarı";
+    private const string InvalidTemplateCode = "InvalidAssetTemplate";
+    private const string InvalidTemplateMessage =
+        "Dosya beklenen Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
 
     public bool CanParse(string fileExtension) =>
         string.Equals(fileExtension, ".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -23,7 +26,7 @@ public sealed class ClosedXmlAssetFileParser : IAssetFileParser
 
         if (!HasZipSignature(buffer))
         {
-            return Invalid("InvalidSignature", "Seçilen dosya geçerli bir XLSX dosyası değil.");
+            return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
         }
 
         buffer.Position = 0;
@@ -34,16 +37,12 @@ public sealed class ClosedXmlAssetFileParser : IAssetFileParser
 
             if (!workbook.TryGetWorksheet(ExpectedWorksheetName, out var worksheet))
             {
-                return Invalid(
-                    "MissingWorksheet",
-                    $"'{ExpectedWorksheetName}' isimli çalışma sayfası bulunamadı.");
+                return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
             }
 
-            var headerErrors = ValidateHeaders(worksheet);
-
-            if (headerErrors.Count > 0)
+            if (!HasExpectedHeaders(worksheet))
             {
-                return new AssetFileParseResult([], headerErrors);
+                return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
             }
 
             return ParseRows(worksheet);
@@ -54,9 +53,7 @@ public sealed class ClosedXmlAssetFileParser : IAssetFileParser
         }
         catch (Exception)
         {
-            return Invalid(
-                "UnreadableWorkbook",
-                "XLSX dosyası okunamadı. Dosyanın bozuk olmadığını ve örnek şablona uyduğunu kontrol edin.");
+            return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
         }
     }
 
@@ -137,30 +134,13 @@ public sealed class ClosedXmlAssetFileParser : IAssetFileParser
         return new AssetFileParseResult(values, errors);
     }
 
-    private static List<AssetImportValidationError> ValidateHeaders(
-        IXLWorksheet worksheet)
+    private static bool HasExpectedHeaders(IXLWorksheet worksheet)
     {
-        var errors = new List<AssetImportValidationError>();
         var dateHeader = worksheet.Cell(1, 1).GetString().Trim();
         var amountHeader = worksheet.Cell(1, 2).GetString().Trim();
 
-        if (!string.Equals(dateHeader, ExpectedDateHeader, StringComparison.Ordinal))
-        {
-            errors.Add(new(
-                "InvalidDateHeader",
-                $"A1 başlığı '{ExpectedDateHeader}' olmalıdır.",
-                1));
-        }
-
-        if (!string.Equals(amountHeader, ExpectedAmountHeader, StringComparison.Ordinal))
-        {
-            errors.Add(new(
-                "InvalidAmountHeader",
-                $"B1 başlığı '{ExpectedAmountHeader}' olmalıdır.",
-                1));
-        }
-
-        return errors;
+        return string.Equals(dateHeader, ExpectedDateHeader, StringComparison.Ordinal) &&
+               string.Equals(amountHeader, ExpectedAmountHeader, StringComparison.Ordinal);
     }
 
     private static bool HasZipSignature(MemoryStream stream)

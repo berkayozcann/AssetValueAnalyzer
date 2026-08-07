@@ -1,3 +1,4 @@
+using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using ClosedXML.Excel;
 
@@ -47,7 +48,7 @@ public sealed class ClosedXmlAssetFileParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_WithIndexWorksheet_ReturnsMissingAssetWorksheetError()
+    public async Task ParseAsync_WithDifferentWorksheet_ReturnsGenericTemplateError()
     {
         await using var stream = new MemoryStream();
 
@@ -63,11 +64,33 @@ public sealed class ClosedXmlAssetFileParserTests
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
         Assert.False(result.IsValid);
-        Assert.Equal("MissingWorksheet", Assert.Single(result.Errors).Code);
+        AssertInvalidAssetTemplate(result);
     }
 
     [Fact]
-    public async Task ParseAsync_WithNonXlsxContent_ReturnsSignatureError()
+    public async Task ParseAsync_WithUnexpectedHeaders_ReturnsGenericTemplateError()
+    {
+        await using var stream = new MemoryStream();
+
+        using (var workbook = new XLWorkbook())
+        {
+            var worksheet = workbook.Worksheets.Add("Varlık Tablosu");
+            worksheet.Cell(1, 1).Value = "Beklenmeyen kolon";
+            worksheet.Cell(1, 2).Value = "Başka kolon";
+            workbook.SaveAs(stream);
+        }
+
+        stream.Position = 0;
+        var parser = new ClosedXmlAssetFileParser();
+
+        var result = await parser.ParseAsync(stream, CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        AssertInvalidAssetTemplate(result);
+    }
+
+    [Fact]
+    public async Task ParseAsync_WithNonXlsxContent_ReturnsGenericTemplateError()
     {
         await using var stream = new MemoryStream("not-an-xlsx"u8.ToArray());
         var parser = new ClosedXmlAssetFileParser();
@@ -75,7 +98,7 @@ public sealed class ClosedXmlAssetFileParserTests
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
         Assert.False(result.IsValid);
-        Assert.Equal("InvalidSignature", Assert.Single(result.Errors).Code);
+        AssertInvalidAssetTemplate(result);
     }
 
     private static MemoryStream CreateWorkbook(
@@ -100,5 +123,14 @@ public sealed class ClosedXmlAssetFileParserTests
 
         stream.Position = 0;
         return stream;
+    }
+
+    private static void AssertInvalidAssetTemplate(AssetFileParseResult result)
+    {
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("InvalidAssetTemplate", error.Code);
+        Assert.Equal(
+            "Dosya beklenen Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.",
+            error.Message);
     }
 }
