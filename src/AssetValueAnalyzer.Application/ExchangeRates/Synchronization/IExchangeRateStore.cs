@@ -4,6 +4,9 @@ namespace AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 
 public interface IExchangeRateStore
 {
+    Task<DateOnly?> GetLatestRateDateAsync(
+        CancellationToken cancellationToken = default);
+
     Task<ExchangeRateUpsertResult> UpsertAsync(
         IReadOnlyCollection<ExchangeRate> exchangeRates,
         CancellationToken cancellationToken = default);

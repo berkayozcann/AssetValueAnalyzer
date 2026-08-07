@@ -34,6 +34,8 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IExchangeRateStore>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ExchangeRateSynchronizationService>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<InitializeExchangeRatesService>());
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());

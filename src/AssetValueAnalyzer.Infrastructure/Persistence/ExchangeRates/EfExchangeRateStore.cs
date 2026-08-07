@@ -7,6 +7,14 @@ namespace AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
 public sealed class EfExchangeRateStore(
     AssetValueAnalyzerDbContext dbContext) : IExchangeRateStore
 {
+    public Task<DateOnly?> GetLatestRateDateAsync(
+        CancellationToken cancellationToken = default) =>
+        dbContext.ExchangeRates
+            .AsNoTracking()
+            .OrderByDescending(rate => rate.RateDate)
+            .Select(rate => (DateOnly?)rate.RateDate)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<ExchangeRateUpsertResult> UpsertAsync(
         IReadOnlyCollection<ExchangeRate> exchangeRates,
         CancellationToken cancellationToken = default)

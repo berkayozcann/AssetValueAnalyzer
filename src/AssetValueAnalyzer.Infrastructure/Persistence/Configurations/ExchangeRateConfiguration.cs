@@ -44,11 +44,11 @@ public sealed class ExchangeRateConfiguration : IEntityTypeConfiguration<Exchang
             .IsRequired();
 
         builder.HasIndex(rate => new
-            {
-                rate.BaseCurrencyCode,
-                rate.ForeignCurrencyCode,
-                rate.RateDate
-            })
+        {
+            rate.BaseCurrencyCode,
+            rate.ForeignCurrencyCode,
+            rate.RateDate
+        })
             .IsUnique()
             .HasDatabaseName("UX_ExchangeRates_CurrencyPair_RateDate");
     }

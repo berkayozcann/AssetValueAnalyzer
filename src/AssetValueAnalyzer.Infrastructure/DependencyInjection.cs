@@ -58,6 +58,7 @@ public static class DependencyInjection
 
         services.AddScoped<IExchangeRateStore, EfExchangeRateStore>();
         services.AddScoped<ExchangeRateSynchronizationService>();
+        services.AddScoped<InitializeExchangeRatesService>();
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         return services;

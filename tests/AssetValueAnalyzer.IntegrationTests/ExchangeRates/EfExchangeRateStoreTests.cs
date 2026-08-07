@@ -9,6 +9,38 @@ namespace AssetValueAnalyzer.IntegrationTests.ExchangeRates;
 public sealed class EfExchangeRateStoreTests
 {
     [Fact]
+    public async Task GetLatestRateDateAsync_ReturnsTheMostRecentStoredDate()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(CancellationToken.None);
+        var dbContextOptions = new DbContextOptionsBuilder<AssetValueAnalyzerDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using (var setupContext = new AssetValueAnalyzerDbContext(dbContextOptions))
+        {
+            await setupContext.Database.EnsureCreatedAsync(CancellationToken.None);
+            setupContext.ExchangeRates.AddRange(
+                CreateExchangeRate(
+                    new DateTime(2026, 8, 5, 6, 0, 0),
+                    new DateTimeOffset(2026, 8, 5, 6, 1, 0, TimeSpan.Zero),
+                    46.10000m),
+                CreateExchangeRate(
+                    new DateTime(2026, 8, 7, 6, 0, 0),
+                    new DateTimeOffset(2026, 8, 7, 6, 1, 0, TimeSpan.Zero),
+                    46.50000m));
+            await setupContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var queryContext = new AssetValueAnalyzerDbContext(dbContextOptions);
+        var store = new EfExchangeRateStore(queryContext);
+
+        var latestRateDate = await store.GetLatestRateDateAsync(CancellationToken.None);
+
+        Assert.Equal(new DateOnly(2026, 8, 7), latestRateDate);
+    }
+
+    [Fact]
     public async Task UpsertAsync_InsertsThenUpdatesTheSameBusinessKey()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
