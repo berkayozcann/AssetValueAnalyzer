@@ -1,10 +1,12 @@
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Web.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddHostedService<ExchangeRateInitializationHostedService>();
 
 var app = builder.Build();
 

@@ -34,6 +34,47 @@ public sealed class ExchangeRateTests
     }
 
     [Fact]
+    public void Constructor_AcceptsZeroForOptionalSourceRates()
+    {
+        var rate = new ExchangeRate(
+            baseCurrencyCode: 1,
+            foreignCurrencyCode: 56,
+            sourceUpdatedAt: new DateTime(2021, 12, 8),
+            retrievedAtUtc: DateTimeOffset.UtcNow,
+            changeRate: 0m,
+            exchangeRateValue: 0m,
+            cashChangeRate: 13.14350m,
+            cashExchangeRate: 0m,
+            centralBankChangeRate: 0m,
+            centralBankExchangeRate: 0m,
+            crossRate: 0m);
+
+        Assert.Equal(13.14350m, rate.CashChangeRate);
+        Assert.Equal(0m, rate.CrossRate);
+    }
+
+    [Fact]
+    public void Constructor_RejectsNegativeOptionalSourceRate()
+    {
+        var action = () => new ExchangeRate(
+            baseCurrencyCode: 1,
+            foreignCurrencyCode: 56,
+            sourceUpdatedAt: new DateTime(2021, 12, 8),
+            retrievedAtUtc: DateTimeOffset.UtcNow,
+            changeRate: -1m,
+            exchangeRateValue: 0m,
+            cashChangeRate: 13.14350m,
+            cashExchangeRate: 0m,
+            centralBankChangeRate: 0m,
+            centralBankExchangeRate: 0m,
+            crossRate: 0m);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(action);
+
+        Assert.Equal("changeRate", exception.ParamName);
+    }
+
+    [Fact]
     public void UpdateRates_ReplacesValuesForTheSameCurrencyPairAndDate()
     {
         var rate = CreateRate(

@@ -84,13 +84,13 @@ public sealed class ExchangeRate
                 nameof(sourceUpdatedAt));
         }
 
-        EnsurePositive(changeRate, nameof(changeRate));
-        EnsurePositive(exchangeRateValue, nameof(exchangeRateValue));
+        EnsureNonNegative(changeRate, nameof(changeRate));
+        EnsureNonNegative(exchangeRateValue, nameof(exchangeRateValue));
         EnsurePositive(cashChangeRate, nameof(cashChangeRate));
-        EnsurePositive(cashExchangeRate, nameof(cashExchangeRate));
-        EnsurePositive(centralBankChangeRate, nameof(centralBankChangeRate));
-        EnsurePositive(centralBankExchangeRate, nameof(centralBankExchangeRate));
-        EnsurePositive(crossRate, nameof(crossRate));
+        EnsureNonNegative(cashExchangeRate, nameof(cashExchangeRate));
+        EnsureNonNegative(centralBankChangeRate, nameof(centralBankChangeRate));
+        EnsureNonNegative(centralBankExchangeRate, nameof(centralBankExchangeRate));
+        EnsureNonNegative(crossRate, nameof(crossRate));
 
         SourceUpdatedAt = sourceUpdatedAt;
         RetrievedAtUtc = retrievedAtUtc.ToUniversalTime();
@@ -123,6 +123,17 @@ public sealed class ExchangeRate
                 parameterName,
                 value,
                 "Exchange-rate values must be greater than zero.");
+        }
+    }
+
+    private static void EnsureNonNegative(decimal value, string parameterName)
+    {
+        if (value < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                value,
+                "Exchange-rate values cannot be negative.");
         }
     }
 }
