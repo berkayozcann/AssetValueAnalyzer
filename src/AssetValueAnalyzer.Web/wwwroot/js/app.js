@@ -322,6 +322,8 @@ document.addEventListener("DOMContentLoaded", () => {
     step: 1,
     assetFile: null,
     indexFile: null,
+    assetValidationState: "idle",
+    assetValidationRequestId: 0,
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -342,7 +344,101 @@ document.addEventListener("DOMContentLoaded", () => {
   startMonthInput.addEventListener("change", validateWizardRange);
   endMonthInput.addEventListener("change", validateWizardRange);
 
-  const setFileState = (input) => {
+  const updateContinueState = () => {
+    continueButton.disabled = !(
+      state.assetValidationState === "valid" &&
+      state.indexFile
+    );
+  };
+
+  const setStatus = (status, text, tone) => {
+    status.hidden = false;
+    status.classList.remove("hidden");
+    status.textContent = text;
+    status.classList.remove(
+      "text-slate-400",
+      "border-slate-600",
+      "text-positive-400",
+      "border-positive-400/45",
+      "text-negative-400",
+    );
+
+    if (tone === "positive") {
+      status.classList.add("text-positive-400", "border-positive-400/45");
+    } else if (tone === "negative") {
+      status.classList.add("text-negative-400", "border-slate-600");
+    } else {
+      status.classList.add("text-slate-400", "border-slate-600");
+    }
+  };
+
+  const setValidationMessage = (element, message, tone = "neutral") => {
+    if (!element) {
+      return;
+    }
+
+    element.textContent = message;
+    element.classList.toggle("text-negative-400", tone === "negative");
+    element.classList.toggle("text-positive-400", tone === "positive");
+    element.classList.toggle("text-slate-400", tone === "neutral");
+  };
+
+  const validateAssetFile = async (file, row, requestId) => {
+    const status = row.querySelector("[data-file-status]");
+    const validation = row.querySelector("[data-file-validation]");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    state.assetValidationState = "validating";
+    setStatus(status, "Doğrulanıyor…", "neutral");
+    setValidationMessage(validation, "Dosya yapısı ve aylık değerler kontrol ediliyor.");
+    updateContinueState();
+
+    try {
+      const response = await fetch("/imports/assets/validate", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (requestId !== state.assetValidationRequestId) {
+        return;
+      }
+
+      if (!response.ok || !result.isValid) {
+        const message = result.errors?.[0]?.message ?? "Varlık dosyası doğrulanamadı.";
+        state.assetValidationState = "invalid";
+        setStatus(status, "Hatalı", "negative");
+        setValidationMessage(validation, message, "negative");
+        updateContinueState();
+        return;
+      }
+
+      state.assetValidationState = "valid";
+      setStatus(status, "Doğrulandı", "positive");
+      setValidationMessage(
+        validation,
+        `${result.parsedCount} aylık kayıt okundu · ${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
+        "positive",
+      );
+    } catch {
+      if (requestId !== state.assetValidationRequestId) {
+        return;
+      }
+
+      state.assetValidationState = "invalid";
+      setStatus(status, "Hatalı", "negative");
+      setValidationMessage(
+        validation,
+        "Dosya doğrulama servisine ulaşılamadı. Uygulamanın çalıştığını kontrol edin.",
+        "negative",
+      );
+    }
+
+    updateContinueState();
+  };
+
+  const setFileState = async (input) => {
     const kind = input.dataset.fileInput;
     const file = input.files?.[0] ?? null;
     state[kind] = file;
@@ -350,27 +446,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const row = wizard.querySelector(`[data-file-row="${kind}"]`);
     const name = row.querySelector("[data-file-name]");
     const status = row.querySelector("[data-file-status]");
+    const validation = row.querySelector("[data-file-validation]");
 
     if (file) {
       name.textContent = file.name;
       name.classList.remove("text-slate-400");
       name.classList.add("text-white");
-      status.hidden = false;
-      status.classList.remove("hidden");
-      status.textContent = "Seçildi";
-      status.classList.remove("text-slate-400", "border-slate-600");
-      status.classList.add("text-positive-400", "border-positive-400/45");
+
+      if (kind === "assetFile") {
+        const requestId = ++state.assetValidationRequestId;
+        await validateAssetFile(file, row, requestId);
+      } else {
+        setStatus(status, "Seçildi", "positive");
+      }
     } else {
       name.textContent = "Henüz dosya seçilmedi";
       name.classList.add("text-slate-400");
       name.classList.remove("text-white");
       status.hidden = true;
       status.classList.add("hidden");
-      status.classList.add("text-slate-400", "border-slate-600");
-      status.classList.remove("text-positive-400", "border-positive-400/45");
+
+      if (kind === "assetFile") {
+        state.assetValidationRequestId++;
+        state.assetValidationState = "idle";
+        setValidationMessage(validation, "");
+      }
     }
 
-    continueButton.disabled = !(state.assetFile && state.indexFile);
+    updateContinueState();
   };
 
   const renderStep = () => {
@@ -413,14 +516,17 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   fileInputs.forEach((input) => {
-    input.addEventListener("change", () => setFileState(input));
+    input.addEventListener("change", async () => setFileState(input));
   });
 
   wizard.querySelectorAll("[data-go-step]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextStep = Number(button.dataset.goStep);
 
-      if (nextStep === 2 && !(state.assetFile && state.indexFile)) {
+      if (nextStep === 2 && !(
+        state.assetValidationState === "valid" &&
+        state.indexFile
+      )) {
         return;
       }
 

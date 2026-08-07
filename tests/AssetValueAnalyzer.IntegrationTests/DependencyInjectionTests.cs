@@ -1,6 +1,8 @@
+using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
@@ -36,6 +38,10 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<ExchangeRateSynchronizationService>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<InitializeExchangeRatesService>());
+        Assert.IsType<ClosedXmlAssetFileParser>(
+            scope.ServiceProvider.GetRequiredService<IAssetFileParser>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<ReadAssetValuesService>());
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());
