@@ -1,8 +1,10 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
+using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
+using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
@@ -42,6 +44,10 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IAssetFileParser>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadAssetValuesService>());
+        Assert.IsType<ClosedXmlProducerPriceIndexFileParser>(
+            scope.ServiceProvider.GetRequiredService<IProducerPriceIndexFileParser>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<ReadProducerPriceIndicesService>());
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());

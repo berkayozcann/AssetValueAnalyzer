@@ -1,7 +1,9 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
+using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
+using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
@@ -63,6 +65,8 @@ public static class DependencyInjection
         services.AddScoped<InitializeExchangeRatesService>();
         services.AddScoped<IAssetFileParser, ClosedXmlAssetFileParser>();
         services.AddScoped<ReadAssetValuesService>();
+        services.AddScoped<IProducerPriceIndexFileParser, ClosedXmlProducerPriceIndexFileParser>();
+        services.AddScoped<ReadProducerPriceIndicesService>();
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         return services;

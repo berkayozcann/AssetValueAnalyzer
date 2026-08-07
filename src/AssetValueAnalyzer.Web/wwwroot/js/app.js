@@ -324,6 +324,8 @@ document.addEventListener("DOMContentLoaded", () => {
     indexFile: null,
     assetValidationState: "idle",
     assetValidationRequestId: 0,
+    indexValidationState: "idle",
+    indexValidationRequestId: 0,
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -347,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateContinueState = () => {
     continueButton.disabled = !(
       state.assetValidationState === "valid" &&
-      state.indexFile
+      state.indexValidationState === "valid"
     );
   };
 
@@ -438,6 +440,61 @@ document.addEventListener("DOMContentLoaded", () => {
     updateContinueState();
   };
 
+  const validateIndexFile = async (file, row, requestId) => {
+    const status = row.querySelector("[data-file-status]");
+    const validation = row.querySelector("[data-file-validation]");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    state.indexValidationState = "validating";
+    setStatus(status, "Doğrulanıyor…", "neutral");
+    setValidationMessage(validation, "Yıl-ay matrisi ve endeks değerleri kontrol ediliyor.");
+    updateContinueState();
+
+    try {
+      const response = await fetch("/imports/indices/validate", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (requestId !== state.indexValidationRequestId) {
+        return;
+      }
+
+      if (!response.ok || !result.isValid) {
+        const message = result.errors?.[0]?.message ?? "Endeks dosyası doğrulanamadı.";
+        state.indexValidationState = "invalid";
+        setStatus(status, "Hatalı", "negative");
+        setValidationMessage(validation, message, "negative");
+        updateContinueState();
+        return;
+      }
+
+      state.indexValidationState = "valid";
+      setStatus(status, "Doğrulandı", "positive");
+      setValidationMessage(
+        validation,
+        `${result.parsedCount} aylık kayıt okundu · ${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
+        "positive",
+      );
+    } catch {
+      if (requestId !== state.indexValidationRequestId) {
+        return;
+      }
+
+      state.indexValidationState = "invalid";
+      setStatus(status, "Hatalı", "negative");
+      setValidationMessage(
+        validation,
+        "Dosya doğrulama servisine ulaşılamadı. Uygulamanın çalıştığını kontrol edin.",
+        "negative",
+      );
+    }
+
+    updateContinueState();
+  };
+
   const setFileState = async (input) => {
     const kind = input.dataset.fileInput;
     const file = input.files?.[0] ?? null;
@@ -457,7 +514,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const requestId = ++state.assetValidationRequestId;
         await validateAssetFile(file, row, requestId);
       } else {
-        setStatus(status, "Seçildi", "positive");
+        const requestId = ++state.indexValidationRequestId;
+        await validateIndexFile(file, row, requestId);
       }
     } else {
       name.textContent = "Henüz dosya seçilmedi";
@@ -469,6 +527,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (kind === "assetFile") {
         state.assetValidationRequestId++;
         state.assetValidationState = "idle";
+        setValidationMessage(validation, "");
+      } else {
+        state.indexValidationRequestId++;
+        state.indexValidationState = "idle";
         setValidationMessage(validation, "");
       }
     }
@@ -525,7 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (nextStep === 2 && !(
         state.assetValidationState === "valid" &&
-        state.indexFile
+        state.indexValidationState === "valid"
       )) {
         return;
       }
