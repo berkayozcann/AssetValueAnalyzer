@@ -1,0 +1,53 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#020817" />
+    <title>@ViewData["Title"] - Varlık Analizi</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="antialiased selection:bg-brand-500/40 selection:text-white">
+    <header class="border-b border-slate-700/45 bg-canvas-950/72 backdrop-blur-xl">
+        <nav class="app-shell flex min-h-20 items-center justify-between gap-6" aria-label="Ana navigasyon">
+            <div class="flex min-w-0 items-center gap-7 sm:gap-12">
+                <a class="group flex shrink-0 items-center gap-3" asp-controller="Home" asp-action="Index" aria-label="Varlık Analizi ana sayfa">
+                    <span class="flex h-8 items-end gap-1" aria-hidden="true">
+                        <span class="h-4 w-1.5 rounded-sm bg-brand-400"></span>
+                        <span class="h-6 w-1.5 rounded-sm bg-brand-500"></span>
+                        <span class="h-8 w-1.5 rounded-sm bg-indigo-400"></span>
+                    </span>
+                    <span class="truncate text-lg font-semibold tracking-tight text-white sm:text-2xl">Varlık Analizi</span>
+                </a>
+
+                <div class="flex h-20 items-stretch gap-5 sm:gap-9">
+                    <a class="relative flex items-center text-sm font-medium text-slate-300 transition hover:text-white sm:text-base"
+                       asp-controller="Home" asp-action="Index">
+                        Ana Sayfa
+                        @if (ViewData["ActiveNavigation"] as string == "Home")
+                        {
+                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-brand-400"></span>
+                        }
+                    </a>
+                    <a class="relative flex items-center text-sm font-medium text-slate-300 transition hover:text-white sm:text-base"
+                       asp-controller="Reports" asp-action="Sample">
+                        Raporlar
+                        @if (ViewData["ActiveNavigation"] as string == "Reports")
+                        {
+                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-brand-400"></span>
+                        }
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <script src="~/js/app.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

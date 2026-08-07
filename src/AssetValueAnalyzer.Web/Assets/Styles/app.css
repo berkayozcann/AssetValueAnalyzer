@@ -1,0 +1,161 @@
+@import "tailwindcss" source("../../");
+
+@theme {
+  --font-sans: "Inter", "SF Pro Display", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas-950: #020817;
+  --color-canvas-900: #040b1b;
+  --color-surface-900: #071126;
+  --color-surface-800: #0b1730;
+  --color-surface-700: #122447;
+  --color-line-700: #1b365f;
+  --color-brand-400: #7487ff;
+  --color-brand-500: #5f72f6;
+  --color-accent-300: #67e8f9;
+  --color-positive-400: #67e86f;
+  --color-negative-400: #ff5b57;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    font-family: var(--font-sans);
+    background: var(--color-canvas-950);
+  }
+
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--color-canvas-950);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: #f8fafc;
+    background:
+      radial-gradient(circle at 85% 0%, rgb(18 52 100 / 24%), transparent 32rem),
+      linear-gradient(145deg, #030918 0%, #020817 58%, #061126 100%);
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  button,
+  a,
+  input {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-300);
+    outline-offset: 3px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .app-shell {
+    width: min(100% - 2rem, 96rem);
+    margin-inline: auto;
+  }
+
+  .glass-panel {
+    border: 1px solid rgb(70 104 173 / 58%);
+    background:
+      radial-gradient(circle at 100% 44%, rgb(53 87 176 / 20%), transparent 18rem),
+      radial-gradient(circle at 0% 100%, rgb(40 80 167 / 24%), transparent 15rem),
+      linear-gradient(135deg, rgb(10 27 64 / 96%), rgb(7 20 48 / 96%));
+    box-shadow: 0 30px 90px rgb(0 0 0 / 34%);
+  }
+
+  .surface-card {
+    border: 1px solid rgb(75 104 157 / 42%);
+    background: linear-gradient(145deg, rgb(6 16 38 / 92%), rgb(8 20 45 / 88%));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 2%);
+  }
+
+  .field-card {
+    border: 1px solid rgb(95 120 170 / 44%);
+    background: rgb(3 12 31 / 72%);
+    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+
+  .field-card:hover {
+    border-color: rgb(103 232 249 / 58%);
+    background: rgb(7 20 47 / 88%);
+  }
+
+  .primary-button {
+    border: 1px solid rgb(103 232 249 / 76%);
+    color: #04101f;
+    background: linear-gradient(120deg, #8be9ff, #67e8f9 52%, #7dd3fc);
+    box-shadow: 0 12px 30px rgb(34 211 238 / 18%);
+    transition: filter 160ms ease, transform 160ms ease, opacity 160ms ease;
+  }
+
+  .primary-button:hover:not(:disabled) {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+  }
+
+  .primary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.34;
+    box-shadow: none;
+  }
+
+  .secondary-button {
+    border: 1px solid rgb(132 154 201 / 70%);
+    color: #e2e8f0;
+    background: rgb(4 13 33 / 70%);
+    transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+  }
+
+  .secondary-button:hover {
+    border-color: rgb(103 232 249 / 72%);
+    color: #a5f3fc;
+    background: rgb(10 28 62 / 86%);
+  }
+
+  .muted-copy {
+    color: #a9b2c8;
+  }
+
+  .data-table-scroll {
+    scrollbar-color: #8a96ab #1b2940;
+    scrollbar-width: thin;
+  }
+
+  .data-table-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .data-table-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: #1b2940;
+  }
+
+  .data-table-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid #1b2940;
+    border-radius: 999px;
+    background: #8a96ab;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

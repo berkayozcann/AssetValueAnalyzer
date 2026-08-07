@@ -1,0 +1,157 @@
+@using AssetValueAnalyzer.Web.Features.Reports
+@using AssetValueAnalyzer.Web.Features.Shared
+@model ReportPageViewModel
+
+@{
+    ViewData["Title"] = "Rapor Sonucu";
+    ViewData["ActiveNavigation"] = "Reports";
+}
+
+<section class="app-shell pb-10 pt-8">
+    <nav class="text-sm text-slate-400" aria-label="Sayfa yolu">
+        <a class="hover:text-white" asp-controller="Home" asp-action="Index">Ana Sayfa</a>
+        <span class="mx-2 text-slate-600">/</span>
+        <span class="text-brand-400">Rapor Sonucu</span>
+    </nav>
+
+    <div class="mt-4 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+            <div class="flex flex-wrap items-center gap-4">
+                <h1 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Finansal Etki Raporu</h1>
+                @if (Model.IsSample)
+                {
+                    <span class="rounded-lg border border-brand-400/25 bg-brand-500/15 px-3 py-1.5 text-sm font-medium text-brand-400">Örnek Veri</span>
+                }
+            </div>
+            <p class="mt-3 text-base muted-copy">@Model.Period</p>
+        </div>
+
+        <div class="flex flex-col items-stretch gap-4 sm:items-end">
+            <partial name="_ExchangeRateCard" model="Model.ExchangeRate" />
+            <div class="flex flex-wrap gap-3">
+                <a class="secondary-button inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium"
+                   asp-controller="Home" asp-action="Index">
+                    <span aria-hidden="true">＋</span> Yeni Rapor
+                </a>
+                <a class="secondary-button inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium"
+                   asp-controller="Home" asp-action="Index">
+                    <span aria-hidden="true">▣</span> Tarih Aralığı
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <section class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Rapor özeti">
+        @foreach (var kpi in Model.Kpis)
+        {
+            var valueClass = kpi.Tone switch
+            {
+                ReportKpiTone.Positive => "text-positive-400",
+                ReportKpiTone.Negative => "text-negative-400",
+                _ => "text-white"
+            };
+            var iconClass = kpi.Tone switch
+            {
+                ReportKpiTone.Positive => "bg-positive-400/10 text-positive-400",
+                ReportKpiTone.Negative => "bg-negative-400/10 text-negative-400",
+                _ => "bg-brand-500/15 text-brand-400"
+            };
+
+            <article class="surface-card rounded-xl px-5 py-5">
+                <div class="flex items-start gap-4">
+                    <span class="@iconClass flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl" aria-hidden="true">⌁</span>
+                    <div class="min-w-0">
+                        <p class="text-sm text-slate-200">@kpi.Label</p>
+                        <p class="@valueClass mt-2 text-2xl font-semibold tracking-tight tabular-nums">@kpi.Value</p>
+                        <p class="mt-2 text-sm text-slate-400">@kpi.Description</p>
+                    </div>
+                </div>
+            </article>
+        }
+    </section>
+
+    <section class="mt-5 overflow-hidden rounded-xl border border-line-700 bg-surface-900/78" aria-labelledby="monthly-details-heading">
+        <div class="flex flex-wrap items-center gap-4 border-b border-line-700 px-5 py-3">
+            <h2 id="monthly-details-heading" class="text-xl font-semibold text-white">Aylık Detaylar</h2>
+            <p class="text-sm text-slate-400">@Model.Rows.Count ay <span class="mx-2">•</span> 14 kolon</p>
+        </div>
+
+        <div class="data-table-scroll overflow-x-auto">
+            <table class="min-w-[1900px] border-collapse text-sm tabular-nums">
+                <thead class="sticky top-0 z-20 bg-[#0b1730] text-left text-slate-200">
+                    <tr>
+                        <th scope="col" class="sticky left-0 z-30 min-w-32 border-b border-r border-line-700 bg-[#0b1730] px-5 py-3 font-medium">Tarih</th>
+                        <th scope="col" class="sticky left-32 z-30 min-w-44 border-b border-r border-line-700 bg-[#0b1730] px-5 py-3 text-right font-medium">Varlık Tutarı</th>
+                        <th scope="col" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Aylık Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Aylık Varlık Artışı", "Nominal varlık tutarının önceki aya göre tutarsal değişimidir. İlk ayda önceki dönem olmadığı için çizgi gösterilir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Varlık Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Varlık Değişim Oranı", "Nominal varlığın ilgili dönemdeki yüzdesel değişimini gösterir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-36 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">USD Kuru @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("USD Kuru", "İlgili ayın son iş günündeki USD/TRY CashChangeRate değeridir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-52 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Dolarizasyon Tutarı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Tutarı", "Satır ayındaki varlığın, rapor ayı ve satır ayı USD kurları kullanılarak rapor ayına taşınmış değeridir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Dolarizasyon Aylık Artış @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Aylık Artış", "Dolarize tutarın önceki aya göre değişimidir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Dolarizasyon Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Değişim Oranı", "Dolarize tutarın rapor dönemindeki yüzdesel değişimini gösterir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-44 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Dolarizasyon Etkisi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Etkisi", "Nominal varlığın kur değişimi karşısında değerini koruyup korumadığını gösterir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-40 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Yİ-ÜFE Endeksi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Yİ-ÜFE Endeksi", "İlgili aya ait Yurt İçi Üretici Fiyat Endeksi puanıdır."))</span>
+                        </th>
+                        <th scope="col" class="min-w-56 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Enflasyonize Tutar @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyonize Tutar", "Satır ayındaki varlığın Yİ-ÜFE değişimi kullanılarak rapor ayına taşınmış değeridir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Enflasyon Aylık Artış @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Aylık Artış", "Enflasyonize tutarın önceki aya göre değişimidir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Enflasyon Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Değişim Oranı", "Enflasyonize tutarın rapor dönemindeki yüzdesel değişimini gösterir."))</span>
+                        </th>
+                        <th scope="col" class="min-w-44 border-b border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2">Enflasyon Etkisi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Etkisi", "Nominal varlığın üretici fiyat artışı karşısında değerini koruyup korumadığını gösterir."))</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line-700/85 text-slate-200">
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr class="transition hover:bg-brand-500/5">
+                            <th scope="row" class="sticky left-0 z-10 border-r border-line-700 bg-[#09152b] px-5 py-2.5 text-left font-medium text-white">@row.Month</th>
+                            <td class="sticky left-32 z-10 border-r border-line-700 bg-[#0d1b32] px-5 py-2.5 text-right font-medium text-white">@row.AssetValue</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-positive-400">@row.MonthlyAssetIncrease</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-positive-400">@row.AssetChangeRate</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right">@row.UsdRate</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right">@row.DollarizedAmount</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-positive-400">@row.MonthlyDollarizedIncrease</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-negative-400">@row.DollarizedChangeRate</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-negative-400">@row.DollarizationEffect</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right">@row.ProducerPriceIndex</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right">@row.InflationAdjustedAmount</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-positive-400">@row.MonthlyInflationAdjustedIncrease</td>
+                            <td class="border-r border-line-700 px-5 py-2.5 text-right text-negative-400">@row.InflationAdjustedChangeRate</td>
+                            <td class="px-5 py-2.5 text-right text-negative-400">@row.InflationEffect</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="flex flex-col gap-3 border-t border-line-700 px-5 py-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>1–@Model.Rows.Count / @Model.Rows.Count ay</p>
+            <p class="flex items-center gap-2"><span aria-hidden="true">ⓘ</span> Tüm aylar sırasıyla gösterilir.</p>
+        </footer>
+    </section>
+
+    @if (Model.IsSample)
+    {
+        <p class="mt-4 flex items-center gap-2 text-sm text-slate-400"><span class="text-brand-400" aria-hidden="true">ⓘ</span> Bu ekran sentetik verilerle hazırlanmış örnek rapordur.</p>
+    }
+</section>

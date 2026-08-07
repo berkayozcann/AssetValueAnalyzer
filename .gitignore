@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/node_modules/
+.DS_Store
+.idea/
+.vscode/
+*.user
+*.suo
+.env
+appsettings.Local.json
+
