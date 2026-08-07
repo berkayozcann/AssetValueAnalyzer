@@ -1,0 +1,18 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: asset-value-analyzer-mssql
+    hostname: asset-value-analyzer-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD before starting Compose}"
+    ports:
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - asset-value-analyzer-mssql-data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  asset-value-analyzer-mssql-data:
