@@ -103,6 +103,19 @@ public sealed class ExchangeRate
         CrossRate = crossRate;
     }
 
+    public bool HasSameRateValues(ExchangeRate other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        return ChangeRate == other.ChangeRate &&
+               ExchangeRateValue == other.ExchangeRateValue &&
+               CashChangeRate == other.CashChangeRate &&
+               CashExchangeRate == other.CashExchangeRate &&
+               CentralBankChangeRate == other.CentralBankChangeRate &&
+               CentralBankExchangeRate == other.CentralBankExchangeRate &&
+               CrossRate == other.CrossRate;
+    }
+
     private static DateOnly GetRateDate(DateTime sourceUpdatedAt)
     {
         if (sourceUpdatedAt == default)

@@ -21,13 +21,14 @@ public sealed class ExchangeRateInitializationHostedService(
             logger.LogInformation(
                 "Exchange-rate initialization completed. Previous latest date: {PreviousLatestDate}; " +
                 "requested range: {StartDate} - {EndDate}; received: {ReceivedCount}; " +
-                "inserted: {InsertedCount}; updated: {UpdatedCount}.",
+                "inserted: {InsertedCount}; updated: {UpdatedCount}; unchanged: {UnchangedCount}.",
                 result.PreviouslyLatestRateDate,
                 result.RequestedStartDate,
                 result.RequestedEndDate,
                 result.Synchronization.ReceivedCount,
                 result.Synchronization.InsertedCount,
-                result.Synchronization.UpdatedCount);
+                result.Synchronization.UpdatedCount,
+                result.Synchronization.UnchangedCount);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {

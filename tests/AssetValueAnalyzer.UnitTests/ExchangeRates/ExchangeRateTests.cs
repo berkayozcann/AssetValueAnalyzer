@@ -120,6 +120,21 @@ public sealed class ExchangeRateTests
         Assert.Throws<ArgumentException>(action);
     }
 
+    [Fact]
+    public void HasSameRateValues_IgnoresRetrievalAndSourceTimestamps()
+    {
+        var storedRate = CreateRate(
+            new DateTime(2026, 8, 7, 6, 4, 36),
+            new DateTimeOffset(2026, 8, 7, 6, 5, 0, TimeSpan.Zero),
+            cashChangeRate: 46.55073m);
+        var laterIdenticalRate = CreateRate(
+            new DateTime(2026, 8, 7, 10, 15, 0),
+            new DateTimeOffset(2026, 8, 7, 10, 16, 0, TimeSpan.Zero),
+            cashChangeRate: 46.55073m);
+
+        Assert.True(storedRate.HasSameRateValues(laterIdenticalRate));
+    }
+
     private static ExchangeRate CreateRate(
         DateTime sourceUpdatedAt,
         DateTimeOffset retrievedAt,

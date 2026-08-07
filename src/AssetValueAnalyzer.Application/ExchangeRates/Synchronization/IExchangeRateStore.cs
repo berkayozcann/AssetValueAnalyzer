@@ -14,4 +14,5 @@ public interface IExchangeRateStore
 
 public sealed record ExchangeRateUpsertResult(
     int InsertedCount,
-    int UpdatedCount);
+    int UpdatedCount,
+    int UnchangedCount);

@@ -113,7 +113,7 @@ public sealed class InitializeExchangeRatesServiceTests
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ExchangeRateUpsertResult(0, 0));
+            Task.FromResult(new ExchangeRateUpsertResult(0, 0, 0));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

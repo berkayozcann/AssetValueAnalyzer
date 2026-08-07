@@ -23,7 +23,10 @@ public sealed class ExchangeRateSynchronizationServiceTests
             SourceUpdatedAt: new DateTime(2026, 8, 6, 6, 4, 36));
         var finmaksClient = new StubFinmaksExchangeRateClient([quote]);
         var exchangeRateStore = new CapturingExchangeRateStore(
-            new ExchangeRateUpsertResult(InsertedCount: 1, UpdatedCount: 0));
+            new ExchangeRateUpsertResult(
+                InsertedCount: 1,
+                UpdatedCount: 0,
+                UnchangedCount: 0));
         var service = new ExchangeRateSynchronizationService(
             finmaksClient,
             exchangeRateStore,
@@ -37,6 +40,7 @@ public sealed class ExchangeRateSynchronizationServiceTests
         Assert.Equal(1, result.ReceivedCount);
         Assert.Equal(1, result.InsertedCount);
         Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(0, result.UnchangedCount);
         Assert.Equal(request.StartDate, finmaksClient.StartDate);
         Assert.Equal(request.EndDate, finmaksClient.EndDate);
 
@@ -54,7 +58,7 @@ public sealed class ExchangeRateSynchronizationServiceTests
         var finmaksClient = new StubFinmaksExchangeRateClient([]);
         var service = new ExchangeRateSynchronizationService(
             finmaksClient,
-            new CapturingExchangeRateStore(new ExchangeRateUpsertResult(0, 0)),
+            new CapturingExchangeRateStore(new ExchangeRateUpsertResult(0, 0, 0)),
             new FixedTimeProvider(DateTimeOffset.UnixEpoch));
         var request = new SyncExchangeRatesRequest(
             StartDate: new DateOnly(2026, 8, 1),

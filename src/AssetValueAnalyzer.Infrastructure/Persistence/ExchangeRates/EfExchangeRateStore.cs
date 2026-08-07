@@ -23,7 +23,7 @@ public sealed class EfExchangeRateStore(
 
         if (exchangeRates.Count == 0)
         {
-            return new ExchangeRateUpsertResult(0, 0);
+            return new ExchangeRateUpsertResult(0, 0, 0);
         }
 
         var incomingRates = exchangeRates
@@ -53,11 +53,18 @@ public sealed class EfExchangeRateStore(
         var existingRatesByKey = existingRates.ToDictionary(CreateKey);
         var insertedCount = 0;
         var updatedCount = 0;
+        var unchangedCount = 0;
 
         foreach (var incomingRate in incomingRates)
         {
             if (existingRatesByKey.TryGetValue(CreateKey(incomingRate), out var existingRate))
             {
+                if (existingRate.HasSameRateValues(incomingRate))
+                {
+                    unchangedCount++;
+                    continue;
+                }
+
                 existingRate.UpdateRates(
                     incomingRate.SourceUpdatedAt,
                     incomingRate.RetrievedAtUtc,
@@ -79,7 +86,10 @@ public sealed class EfExchangeRateStore(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ExchangeRateUpsertResult(insertedCount, updatedCount);
+        return new ExchangeRateUpsertResult(
+            insertedCount,
+            updatedCount,
+            unchangedCount);
     }
 
     private static ExchangeRateKey CreateKey(ExchangeRate exchangeRate) =>

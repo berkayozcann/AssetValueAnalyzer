@@ -43,7 +43,8 @@ public sealed class ExchangeRateSynchronizationService
         return new SyncExchangeRatesResult(
             exchangeRates.Length,
             upsertResult.InsertedCount,
-            upsertResult.UpdatedCount);
+            upsertResult.UpdatedCount,
+            upsertResult.UnchangedCount);
     }
 
     private static ExchangeRate CreateExchangeRate(
