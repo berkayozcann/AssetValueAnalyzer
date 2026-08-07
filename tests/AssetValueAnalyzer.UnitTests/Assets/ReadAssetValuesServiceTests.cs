@@ -63,6 +63,40 @@ public sealed class ReadAssetValuesServiceTests
     }
 
     [Fact]
+    public async Task ReadAsync_WithEmptyFile_DoesNotCallParser()
+    {
+        var parser = new StubAssetFileParser(new AssetFileParseResult([], []));
+        var service = new ReadAssetValuesService([parser]);
+
+        var result = await service.ReadAsync(
+            new MemoryStream(),
+            "varlik.xlsx",
+            0,
+            CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("EmptyFile", Assert.Single(result.Errors).Code);
+        Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WithFileLargerThanLimit_DoesNotCallParser()
+    {
+        var parser = new StubAssetFileParser(new AssetFileParseResult([], []));
+        var service = new ReadAssetValuesService([parser]);
+
+        var result = await service.ReadAsync(
+            new MemoryStream([1]),
+            "varlik.xlsx",
+            ReadAssetValuesService.MaxFileSize + 1,
+            CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("FileTooLarge", Assert.Single(result.Errors).Code);
+        Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
     public async Task ReadAsync_WithUnsupportedExtension_DoesNotCallParser()
     {
         var parser = new StubAssetFileParser(new AssetFileParseResult([], []));
