@@ -5,7 +5,10 @@ public sealed record ExchangeRateCardViewModel(
     string TrendText,
     string LastSyncText,
     ExchangeRateTrend Trend,
-    bool IsDemo = false);
+    bool IsDemo = false)
+{
+    public string Label { get; init; } = "Güncel USD/TRY";
+}
 
 public enum ExchangeRateTrend
 {

@@ -22,15 +22,45 @@
         <partial name="_ExchangeRateCard" model="Model.ExchangeRate" />
     </div>
 
+    @if (Model.HasCompletedReport)
+    {
+        <section class="mt-7 flex flex-col gap-4 rounded-2xl border border-positive-400/30 bg-positive-400/[0.08] px-5 py-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Tamamlanan rapor">
+            <div>
+                <p class="font-semibold text-white">Finansal etki analizi raporunuz hazır.</p>
+                <p class="mt-1 text-sm text-slate-300">Raporu görüntüleyebilir veya yeni bir rapor oluşturabilirsiniz.</p>
+            </div>
+            <div class="grid w-full shrink-0 grid-cols-1 gap-3 sm:w-[25rem] sm:grid-cols-2">
+                <a class="secondary-button inline-flex h-12 w-full items-center justify-center rounded-lg px-5 text-sm font-medium"
+                   asp-controller="Reports" asp-action="Index">Raporu Gör</a>
+                <form class="w-full" asp-controller="Reports" asp-action="New" method="post">
+                    <button type="submit" class="primary-button h-12 w-full rounded-lg px-5 text-sm font-semibold">Yeni Rapor Oluştur</button>
+                </form>
+            </div>
+        </section>
+    }
+
     <section class="glass-panel report-builder-panel mt-9 overflow-hidden rounded-[2rem]"
              data-report-wizard
+             data-report-locked="@(Model.HasCompletedReport ? "true" : "false")"
+             data-range-validation-url="@Url.Action("ValidateRange", "Reports")"
              data-asset-ready="@(assetFile is not null ? "true" : "false")"
              data-asset-file-name="@(assetFile?.FileName ?? string.Empty)"
              data-asset-first-month="@(assetFirstMonth ?? string.Empty)"
              data-asset-last-month="@(assetLastMonth ?? string.Empty)"
              data-index-ready="@(indexFile is not null ? "true" : "false")"
              data-index-file-name="@(indexFile?.FileName ?? string.Empty)">
-        <div class="report-builder-content px-6 py-7 sm:px-10 lg:px-14 lg:py-9">
+        <form class="report-builder-content px-6 py-7 sm:px-10 lg:px-14 lg:py-9"
+              asp-controller="Reports"
+              asp-action="Create"
+              method="post">
+            @if (TempData["ReportCreationError"] is string reportCreationError)
+            {
+                <div class="mb-6 rounded-xl border border-negative-400/35 bg-negative-400/10 px-5 py-4 text-sm text-negative-400"
+                     data-report-creation-error
+                     role="alert">
+                    @reportCreationError
+                </div>
+            }
             <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div class="flex items-center gap-5">
                     <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/20 text-brand-400 sm:h-20 sm:w-20">
@@ -45,11 +75,6 @@
                     </div>
                 </div>
 
-                <a class="inline-flex items-center gap-2 self-start text-sm font-medium text-brand-400 transition hover:text-accent-300"
-                   asp-controller="Reports" asp-action="Example">
-                    Örnek Raporu Gör
-                    <span aria-hidden="true">→</span>
-                </a>
             </div>
 
             <ol class="mt-10 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-3" aria-label="Rapor oluşturma adımları">
@@ -85,7 +110,7 @@
                                     <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm @(assetFile is null ? "text-slate-400" : "text-white")" data-file-name>@(assetFile?.FileName ?? "Henüz dosya seçilmedi")</span>
                                     <span class="rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400 @(assetFile is null ? "hidden" : string.Empty)" data-file-status>@(assetFile is null ? "Seçildi" : "Doğrulandı")</span>
                                 </div>
-                                <p class="mt-3 text-sm @(assetFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(assetFile is null ? string.Empty : $"{assetFile.ParsedCount} aylık kayıt bu oturum için hazır · {assetFirstMonth} – {assetLastMonth}")</p>
+                                <p class="mt-3 text-sm @(assetFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(assetFile?.MonthRange ?? string.Empty)</p>
                                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                                     <a href="~/samples/asset-values.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
@@ -96,10 +121,26 @@
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-5">
-                                <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
-                                    Dosya Seç
-                                    <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="assetFile" />
-                                </label>
+                                @if (!Model.HasCompletedReport)
+                                {
+                                    <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
+                                        Dosya Seç
+                                        <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="assetFile" />
+                                    </label>
+                                    <button type="button"
+                                            class="inline-flex items-center gap-2 rounded-lg border border-negative-400/35 bg-negative-400/[0.07] px-4 py-3 text-sm font-medium text-negative-400 transition hover:border-negative-400/60 hover:bg-negative-400/[0.12] @(assetFile is null ? "hidden" : string.Empty)"
+                                            style="@(assetFile is null ? "display: none;" : null)"
+                                            data-file-clear
+                                            data-file-kind="assetFile"
+                                            data-file-clear-url="@Url.Action("ClearAssets", "Imports")">
+                                        <svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"></path></svg>
+                                        Dosyayı Temizle
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="rounded-lg border border-line-700 px-4 py-2 text-sm text-slate-400">Raporda kullanıldı</span>
+                                }
                                 <span class="text-sm text-slate-400">XLSX veya XML</span>
                             </div>
                         </div>
@@ -113,7 +154,7 @@
                                     <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm @(indexFile is null ? "text-slate-400" : "text-white")" data-file-name>@(indexFile?.FileName ?? "Henüz dosya seçilmedi")</span>
                                     <span class="rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400 @(indexFile is null ? "hidden" : string.Empty)" data-file-status>@(indexFile is null ? "Seçildi" : "Doğrulandı")</span>
                                 </div>
-                                <p class="mt-3 text-sm @(indexFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(indexFile is null ? string.Empty : $"{indexFile.ParsedCount} aylık kayıt bu oturum için hazır")</p>
+                                <p class="mt-3 text-sm @(indexFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(indexFile?.MonthRange ?? string.Empty)</p>
                                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                                     <a href="~/samples/producer-price-indices.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
@@ -124,10 +165,26 @@
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-5">
-                                <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
-                                    Dosya Seç
-                                    <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="indexFile" />
-                                </label>
+                                @if (!Model.HasCompletedReport)
+                                {
+                                    <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
+                                        Dosya Seç
+                                        <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="indexFile" />
+                                    </label>
+                                    <button type="button"
+                                            class="inline-flex items-center gap-2 rounded-lg border border-negative-400/35 bg-negative-400/[0.07] px-4 py-3 text-sm font-medium text-negative-400 transition hover:border-negative-400/60 hover:bg-negative-400/[0.12] @(indexFile is null ? "hidden" : string.Empty)"
+                                            style="@(indexFile is null ? "display: none;" : null)"
+                                            data-file-clear
+                                            data-file-kind="indexFile"
+                                            data-file-clear-url="@Url.Action("ClearProducerPriceIndices", "Imports")">
+                                        <svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"></path></svg>
+                                        Dosyayı Temizle
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="rounded-lg border border-line-700 px-4 py-2 text-sm text-slate-400">Raporda kullanıldı</span>
+                                }
                                 <span class="text-sm text-slate-400">XLSX veya XML</span>
                             </div>
                         </div>
@@ -176,7 +233,7 @@
                                     <path d="M8 3v4M16 3v4M3 10h18"></path>
                                 </svg>
                             </button>
-                            <input id="startMonth" type="hidden" value="" data-month-picker-input />
+                            <input id="startMonth" name="StartMonth" type="hidden" value="" data-month-picker-input />
                             <section id="start-month-picker"
                                      class="month-picker-panel fixed z-50 w-72 rounded-xl p-4"
                                      data-month-picker-panel
@@ -203,7 +260,7 @@
                                     <path d="M8 3v4M16 3v4M3 10h18"></path>
                                 </svg>
                             </button>
-                            <input id="endMonth" type="hidden" value="" data-month-picker-input />
+                            <input id="endMonth" name="EndMonth" type="hidden" value="" data-month-picker-input />
                             <section id="end-month-picker"
                                      class="month-picker-panel fixed z-50 w-72 rounded-xl p-4"
                                      data-month-picker-panel
@@ -218,7 +275,7 @@
                             </section>
                         </div>
                     </div>
-                    <p class="mt-3 text-sm text-negative-400" data-month-range-error hidden>Başlangıç ayı bitiş ayından sonra olamaz.</p>
+                    <p class="mt-3 text-sm text-negative-400" data-month-range-error aria-live="polite" hidden>Başlangıç ayı bitiş ayından sonra olamaz.</p>
                 </div>
 
                 <div class="mt-auto flex items-center justify-between gap-4 pt-7">
@@ -228,8 +285,8 @@
             </div>
 
             <div class="wizard-stage mt-8" data-step-panel="3" hidden>
-                <div class="grid gap-5 lg:grid-cols-2">
-                    <section class="surface-card rounded-2xl px-6 py-6">
+                <div class="grid auto-rows-fr gap-5 lg:grid-cols-2">
+                    <section class="surface-card h-full min-h-48 rounded-2xl px-6 py-6">
                         <h3 class="text-xl font-semibold text-white">Veri Dosyaları</h3>
                         <dl class="mt-5 space-y-4 text-sm">
                             <div class="flex items-center justify-between gap-4 border-b border-line-700 pb-4">
@@ -242,12 +299,15 @@
                             </div>
                         </dl>
                     </section>
-                    <section class="surface-card rounded-2xl px-6 py-6">
+                    <section class="surface-card h-full min-h-48 rounded-2xl px-6 py-6">
                         <h3 class="text-xl font-semibold text-white">Hesaplama Kapsamı</h3>
                         <dl class="mt-5 space-y-4 text-sm">
                             <div class="flex items-center justify-between gap-4 border-b border-line-700 pb-4">
                                 <dt class="text-slate-400">Tarih Aralığı</dt>
                                 <dd class="text-right font-medium text-white" data-summary-period>Dosyadaki ilk ve son ay</dd>
+                            </div>
+                            <div class="hidden justify-end" data-summary-automatic-note-row>
+                                <p class="text-right text-xs text-slate-400" data-summary-automatic-note></p>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <dt class="text-slate-400">Dahil Edilen Ay</dt>
@@ -258,15 +318,17 @@
                 </div>
 
                 <p class="mt-5 rounded-xl border border-brand-400/15 bg-brand-500/10 px-5 py-4 text-sm text-slate-300">
-                    Bu UI diliminde gerçek dosya okuma ve finansal hesaplama yapılmaz. Buton örnek sonuç tasarımını açar.
+                    Rapor; aylık varlık tutarları, ÜFE endeksleri ve ay sonu iş günü USD/TRY kurları birlikte değerlendirilerek hazırlanacaktır.
                 </p>
 
                 <div class="mt-auto flex items-center justify-between gap-4 pt-6">
                     <button type="button" class="secondary-button rounded-lg px-8 py-3 font-medium" data-go-step="2">Geri</button>
-                    <a class="primary-button inline-flex min-w-48 items-center justify-center rounded-lg px-8 py-3 font-semibold"
-                       asp-controller="Reports" asp-action="Example">Örnek Raporu Aç</a>
+                    <button type="submit"
+                            class="primary-button inline-flex min-w-48 items-center justify-center rounded-lg px-8 py-3 font-semibold">
+                        Raporu Oluştur
+                    </button>
                 </div>
             </div>
-        </div>
+        </form>
     </section>
 </section>

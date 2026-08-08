@@ -41,6 +41,63 @@ public sealed class AssetUploadControllerTests
         Assert.Equal(2, storedFile.ParsedCount);
     }
 
+    [Fact]
+    public void ClearAssets_RemovesValidatedAssetFileFromWorkspace()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "varlik.xlsx",
+            [new MonthlyAssetValueInput(new DateOnly(2021, 12, 1), 1_000m)]);
+        var controller = CreateController(workspace);
+
+        var result = controller.ClearAssets();
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Null(workspace.Get().AssetValues);
+    }
+
+    [Fact]
+    public async Task UploadAssets_WithCompletedReport_ReturnsConflictWithoutReplacingWorkspace()
+    {
+        await using var stream = new MemoryStream(
+            Encoding.UTF8.GetBytes(
+                "<AssetValues version=\"1.0\"><AssetValue><Month>2021-12</Month><Amount>1000</Amount></AssetValue></AssetValues>"));
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveCompletedReport(TestReportPageViewModelFactory.Create());
+        var controller = CreateController(workspace);
+        var file = new FormFile(stream, 0, stream.Length, "file", "yeni.xml");
+
+        var result = await controller.UploadAssets(file, CancellationToken.None);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        var response = Assert.IsType<AssetFileValidationResult>(conflict.Value);
+        Assert.Equal("CompletedReportLocked", Assert.Single(response.Errors).Code);
+        Assert.NotNull(workspace.Get().CompletedReport);
+    }
+
+    [Fact]
+    public async Task UploadAssets_WithExistingFile_ReplacesPreviousSnapshot()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "eski.xlsx",
+            [new MonthlyAssetValueInput(new DateOnly(2021, 12, 1), 1_000m)]);
+        await using var stream = new MemoryStream(
+            Encoding.UTF8.GetBytes(
+                "<AssetValues version=\"1.0\"><AssetValue><Month>2022-01</Month><Amount>2000</Amount></AssetValue></AssetValues>"));
+        var controller = CreateController(workspace);
+        var file = new FormFile(stream, 0, stream.Length, "file", "yeni.xml");
+
+        var result = await controller.UploadAssets(file, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result);
+        var storedFile = Assert.IsType<ReportDataFileSnapshot>(workspace.Get().AssetValues);
+        Assert.Equal("yeni.xml", storedFile.FileName);
+        var storedValue = Assert.Single(storedFile.Values);
+        Assert.Equal(new DateOnly(2022, 1, 1), storedValue.Month);
+        Assert.Equal(2_000m, storedValue.Value);
+    }
+
     private static ImportsController CreateController(
         IReportWorkspaceSession? workspace = null) =>
         new(

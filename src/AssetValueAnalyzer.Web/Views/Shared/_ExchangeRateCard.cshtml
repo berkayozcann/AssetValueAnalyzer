@@ -17,10 +17,10 @@
     };
 }
 
-<aside class="surface-card min-w-64 rounded-xl px-5 py-4" aria-label="Güncel USD Türk lirası kuru">
+<aside class="surface-card min-w-64 rounded-xl px-5 py-4" aria-label="@Model.Label">
     <div>
         <div class="flex items-center gap-2">
-            <p class="text-sm text-slate-300">Güncel USD/TRY</p>
+            <p class="text-sm text-slate-300">@Model.Label</p>
             @if (Model.IsDemo)
             {
                 <span class="rounded-full border border-brand-400/45 bg-brand-500/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-brand-400">Demo</span>

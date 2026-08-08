@@ -1,7 +1,10 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.External;
+using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
+using AssetValueAnalyzer.Application.Reports.Calculation;
+using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
@@ -58,6 +61,16 @@ public sealed class DependencyInjectionTests
             parser => parser is XmlProducerPriceIndexFileParser);
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadProducerPriceIndicesService>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<FinancialImpactCalculator>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<FinancialImpactReportRangeValidator>());
+        Assert.IsType<EfUsdCashChangeRateReader>(
+            scope.ServiceProvider.GetRequiredService<IUsdCashChangeRateReader>());
+        Assert.IsType<EfCurrentUsdExchangeRateReader>(
+            scope.ServiceProvider.GetRequiredService<ICurrentUsdExchangeRateReader>());
+        Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<CreateFinancialImpactReportService>());
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());

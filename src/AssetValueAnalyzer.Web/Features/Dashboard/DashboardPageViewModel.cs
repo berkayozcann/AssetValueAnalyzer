@@ -6,19 +6,17 @@ namespace AssetValueAnalyzer.Web.Features.Dashboard;
 public sealed record DashboardPageViewModel(
     ExchangeRateCardViewModel ExchangeRate,
     DashboardDataFileViewModel? AssetValues,
-    DashboardDataFileViewModel? ProducerPriceIndices)
+    DashboardDataFileViewModel? ProducerPriceIndices,
+    bool HasCompletedReport)
 {
     public static DashboardPageViewModel FromSnapshot(
-        ReportWorkspaceSnapshot snapshot) =>
+        ReportWorkspaceSnapshot snapshot,
+        ExchangeRateCardViewModel exchangeRate) =>
         new(
-            new ExchangeRateCardViewModel(
-                FormattedRate: "41,2874",
-                TrendText: "Artış",
-                LastSyncText: "Tasarım önizlemesi",
-                Trend: ExchangeRateTrend.Increased,
-                IsDemo: true),
+            exchangeRate,
             DashboardDataFileViewModel.FromSnapshot(snapshot.AssetValues),
-            DashboardDataFileViewModel.FromSnapshot(snapshot.ProducerPriceIndices));
+            DashboardDataFileViewModel.FromSnapshot(snapshot.ProducerPriceIndices),
+            snapshot.CompletedReport is not null);
 }
 
 public sealed record DashboardDataFileViewModel(
@@ -27,6 +25,9 @@ public sealed record DashboardDataFileViewModel(
     DateOnly? FirstMonth,
     DateOnly? LastMonth)
 {
+    public string? MonthRange =>
+        MonthDisplayFormatter.FormatRange(FirstMonth, LastMonth);
+
     public static DashboardDataFileViewModel? FromSnapshot(
         ReportDataFileSnapshot? snapshot) =>
         snapshot is null

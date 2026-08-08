@@ -354,6 +354,10 @@ document.addEventListener("DOMContentLoaded", () => {
     indexValidationRequestId: 0,
     assetFirstMonth: wizard.dataset.assetFirstMonth || null,
     assetLastMonth: wizard.dataset.assetLastMonth || null,
+    rangeValidationState: "idle",
+    rangeValidationRequestId: 0,
+    includedMonthCount: null,
+    reportLocked: wizard.dataset.reportLocked === "true",
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -361,25 +365,107 @@ document.addEventListener("DOMContentLoaded", () => {
   const connectors = [...wizard.querySelectorAll("[data-step-connector]")];
   const fileInputs = [...wizard.querySelectorAll("[data-file-input]")];
   const continueButton = wizard.querySelector("[data-step-one-continue]");
+  const rangeContinueButton = wizard.querySelector("[data-step-two-continue]");
   const rangeError = wizard.querySelector("[data-month-range-error]");
   const startMonthInput = wizard.querySelector("#startMonth");
   const endMonthInput = wizard.querySelector("#endMonth");
+  const reportCreationError = wizard.querySelector("[data-report-creation-error]");
+  const antiforgeryToken = wizard.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
-  const validateWizardRange = () => {
+  const getLocalRangeError = () => {
     const startMonth = startMonthInput.value || state.assetFirstMonth;
     const endMonth = endMonthInput.value || state.assetLastMonth;
-    let message = "";
 
     if (startMonth && endMonth && startMonth === endMonth) {
-      message = "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
-    } else if (startMonth && endMonth && startMonth > endMonth) {
-      message = "Başlangıç ayı bitiş ayından sonra olamaz.";
+      return "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
     }
 
-    const isValid = message.length === 0;
+    if (startMonth && endMonth && startMonth > endMonth) {
+      return "Başlangıç ayı bitiş ayından sonra olamaz.";
+    }
+
+    return "";
+  };
+
+  const setRangeError = (message) => {
     rangeError.textContent = message;
-    rangeError.hidden = isValid;
-    return isValid;
+    rangeError.hidden = message.length === 0;
+  };
+
+  const updateRangeContinueState = () => {
+    rangeContinueButton.disabled = state.rangeValidationState !== "valid";
+  };
+
+  const validateWizardRange = async () => {
+    const localError = getLocalRangeError();
+
+    if (localError) {
+      state.rangeValidationState = "invalid";
+      state.includedMonthCount = null;
+      setRangeError(localError);
+      updateRangeContinueState();
+      return false;
+    }
+
+    if (!(state.assetValidationState === "valid" && state.indexValidationState === "valid")) {
+      state.rangeValidationState = "idle";
+      state.includedMonthCount = null;
+      setRangeError("");
+      updateRangeContinueState();
+      return false;
+    }
+
+    const requestId = ++state.rangeValidationRequestId;
+    state.rangeValidationState = "validating";
+    state.includedMonthCount = null;
+    setRangeError("");
+    updateRangeContinueState();
+
+    const body = new URLSearchParams({
+      StartMonth: startMonthInput.value,
+      EndMonth: endMonthInput.value,
+    });
+
+    if (antiforgeryToken) {
+      body.set("__RequestVerificationToken", antiforgeryToken);
+    }
+
+    try {
+      const response = await fetch(wizard.dataset.rangeValidationUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body,
+      });
+      const result = await response.json();
+
+      if (requestId !== state.rangeValidationRequestId) {
+        return false;
+      }
+
+      if (!response.ok || !result.isValid) {
+        state.rangeValidationState = "invalid";
+        state.includedMonthCount = null;
+        setRangeError(result.errors?.[0]?.message ?? "Seçilen tarih aralığı doğrulanamadı.");
+        updateRangeContinueState();
+        return false;
+      }
+
+      state.rangeValidationState = "valid";
+      state.includedMonthCount = result.includedMonthCount;
+      setRangeError("");
+      updateRangeContinueState();
+      return true;
+    } catch {
+      if (requestId !== state.rangeValidationRequestId) {
+        return false;
+      }
+
+      state.rangeValidationState = "invalid";
+      state.includedMonthCount = null;
+      setRangeError("Tarih aralığı kontrol servisine ulaşılamadı.");
+      updateRangeContinueState();
+      return false;
+    }
   };
 
   const resetWizardRange = () => {
@@ -397,11 +483,23 @@ document.addEventListener("DOMContentLoaded", () => {
       display.classList.remove("text-white");
     });
 
-    validateWizardRange();
+    state.rangeValidationRequestId++;
+    state.rangeValidationState = "idle";
+    state.includedMonthCount = null;
+    setRangeError("");
+    updateRangeContinueState();
   };
 
-  startMonthInput.addEventListener("change", validateWizardRange);
-  endMonthInput.addEventListener("change", validateWizardRange);
+  const handleRangeChange = () => {
+    if (reportCreationError) {
+      reportCreationError.hidden = true;
+    }
+
+    void validateWizardRange();
+  };
+
+  startMonthInput.addEventListener("change", handleRangeChange);
+  endMonthInput.addEventListener("change", handleRangeChange);
 
   const updateContinueState = () => {
     continueButton.disabled = !(
@@ -442,6 +540,22 @@ document.addEventListener("DOMContentLoaded", () => {
     element.classList.toggle("text-slate-400", tone === "neutral");
   };
 
+  const setClearButtonVisibility = (row, visible) => {
+    const button = row.querySelector("[data-file-clear]");
+
+    if (!button) {
+      return;
+    }
+
+    button.hidden = !visible;
+    button.style.display = visible ? "" : "none";
+    button.classList.toggle("hidden", !visible);
+
+    if (visible) {
+      button.disabled = false;
+    }
+  };
+
   const validateAssetFile = async (file, row, requestId) => {
     const status = row.querySelector("[data-file-status]");
     const validation = row.querySelector("[data-file-validation]");
@@ -469,6 +583,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.assetValidationState = "invalid";
         setStatus(status, "Hatalı", "negative");
         setValidationMessage(validation, message, "negative");
+        setClearButtonVisibility(row, false);
         updateContinueState();
         return;
       }
@@ -480,9 +595,10 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(status, "Doğrulandı", "positive");
       setValidationMessage(
         validation,
-        `${result.parsedCount} aylık kayıt okundu · ${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
+        `${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
         "positive",
       );
+      setClearButtonVisibility(row, true);
     } catch {
       if (requestId !== state.assetValidationRequestId) {
         return;
@@ -527,6 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.indexValidationState = "invalid";
         setStatus(status, "Hatalı", "negative");
         setValidationMessage(validation, message, "negative");
+        setClearButtonVisibility(row, false);
         updateContinueState();
         return;
       }
@@ -535,9 +652,14 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(status, "Doğrulandı", "positive");
       setValidationMessage(
         validation,
-        `${result.parsedCount} aylık kayıt okundu · ${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
+        `${formatMonth(result.firstMonth.slice(0, 7))} – ${formatMonth(result.lastMonth.slice(0, 7))}`,
         "positive",
       );
+      setClearButtonVisibility(row, true);
+
+      if (state.step === 2) {
+        void validateWizardRange();
+      }
     } catch {
       if (requestId !== state.indexValidationRequestId) {
         return;
@@ -592,6 +714,7 @@ document.addEventListener("DOMContentLoaded", () => {
       name.classList.remove("text-white");
       status.hidden = true;
       status.classList.add("hidden");
+      setClearButtonVisibility(row, false);
 
       if (kind === "assetFile") {
         state.assetFileName = null;
@@ -655,6 +778,77 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("change", async () => setFileState(input));
   });
 
+  wizard.querySelectorAll("[data-file-clear]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (state.reportLocked) {
+        return;
+      }
+
+      const kind = button.dataset.fileKind;
+      const row = wizard.querySelector(`[data-file-row="${kind}"]`);
+      const input = row?.querySelector(`[data-file-input="${kind}"]`);
+      const name = row?.querySelector("[data-file-name]");
+      const status = row?.querySelector("[data-file-status]");
+      const validation = row?.querySelector("[data-file-validation]");
+      const body = new URLSearchParams();
+
+      if (antiforgeryToken) {
+        body.set("__RequestVerificationToken", antiforgeryToken);
+      }
+
+      button.disabled = true;
+
+      try {
+        const response = await fetch(button.dataset.fileClearUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body,
+        });
+
+        if (!response.ok) {
+          throw new Error("Dosya kaldırılamadı.");
+        }
+
+        if (input) {
+          input.value = "";
+        }
+
+        name.textContent = "Henüz dosya seçilmedi";
+        name.classList.add("text-slate-400");
+        name.classList.remove("text-white");
+        status.hidden = true;
+        status.classList.add("hidden");
+        setValidationMessage(validation, "");
+        setClearButtonVisibility(row, false);
+
+        if (kind === "assetFile") {
+          state.assetFile = null;
+          state.assetFileName = null;
+          state.assetValidationRequestId++;
+          state.assetValidationState = "idle";
+          state.assetFirstMonth = null;
+          state.assetLastMonth = null;
+        } else {
+          state.indexFile = null;
+          state.indexFileName = null;
+          state.indexValidationRequestId++;
+          state.indexValidationState = "idle";
+        }
+
+        resetWizardRange();
+        updateFileSummaries();
+        updateContinueState();
+      } catch {
+        setValidationMessage(
+          validation,
+          "Dosya kaldırılamadı. Lütfen tekrar deneyin.",
+          "negative",
+        );
+        button.disabled = false;
+      }
+    });
+  });
+
   wizard.querySelectorAll("[data-go-step]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextStep = Number(button.dataset.goStep);
@@ -666,32 +860,42 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (nextStep === 3 && !validateWizardRange()) {
+      if (nextStep === 3 && state.rangeValidationState !== "valid") {
+        void validateWizardRange();
         return;
       }
 
       state.step = nextStep;
       updateFileSummaries();
 
+      if (nextStep === 2) {
+        void validateWizardRange();
+      }
+
       if (nextStep === 3) {
         const selectedStart = startMonthInput.value;
         const selectedEnd = endMonthInput.value;
         const effectiveStart = selectedStart || state.assetFirstMonth;
         const effectiveEnd = selectedEnd || state.assetLastMonth;
-        let automaticLabel = "";
+        let automaticNote = "";
 
         if (!selectedStart && !selectedEnd) {
-          automaticLabel = " (otomatik)";
+          automaticNote = "Dosyanın ilk ve son ayı kullanıldı.";
         } else if (!selectedStart) {
-          automaticLabel = " (başlangıç otomatik)";
+          automaticNote = "Başlangıç için dosyanın ilk ayı kullanıldı.";
         } else if (!selectedEnd) {
-          automaticLabel = " (bitiş otomatik)";
+          automaticNote = "Bitiş için dosyanın son ayı kullanıldı.";
         }
 
         wizard.querySelector("[data-summary-period]").textContent =
-          `${formatMonth(effectiveStart)} – ${formatMonth(effectiveEnd)}${automaticLabel}`;
+          `${formatMonth(effectiveStart)} – ${formatMonth(effectiveEnd)}`;
+        const automaticNoteRow = wizard.querySelector("[data-summary-automatic-note-row]");
+        const automaticNoteText = wizard.querySelector("[data-summary-automatic-note]");
+        automaticNoteText.textContent = automaticNote;
+        automaticNoteRow.classList.toggle("hidden", !automaticNote);
+        automaticNoteRow.classList.toggle("flex", Boolean(automaticNote));
         wizard.querySelector("[data-summary-duration]").textContent =
-          `${countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
+          `${state.includedMonthCount ?? countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
       }
 
       closeMonthPickers();
@@ -702,5 +906,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   updateFileSummaries();
   updateContinueState();
+  updateRangeContinueState();
   renderStep();
+
+  if (state.reportLocked) {
+    wizard.querySelectorAll("button, input").forEach((control) => {
+      control.disabled = true;
+    });
+  }
 });

@@ -1,14 +1,17 @@
 @using AssetValueAnalyzer.Web.Features.Reports
 @model DraftFileStatusViewModel
 
-<article class="surface-card rounded-2xl px-5 py-5">
-    <div class="flex items-center justify-between gap-4">
+<article class="surface-card flex h-full min-h-36 items-center rounded-2xl px-6 py-6">
+    <div class="flex w-full items-center justify-between gap-4">
         <div class="min-w-0">
             <h3 class="font-semibold text-white">@Model.Label</h3>
             @if (Model.File is not null)
             {
                 <p class="mt-2 truncate text-sm text-slate-300">@Model.File.FileName</p>
-                <p class="mt-1 text-xs text-slate-400">@Model.File.ParsedCount aylık kayıt doğrulandı</p>
+                @if (Model.File.MonthRange is not null)
+                {
+                    <p class="mt-1 text-xs text-slate-400">@Model.File.MonthRange</p>
+                }
             }
             else
             {

@@ -5,6 +5,7 @@ using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
+using AssetValueAnalyzer.Web.Features.Reports;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -69,12 +70,28 @@ public sealed class ProducerPriceIndexUploadControllerTests
         Assert.Equal("InvalidProducerPriceIndexTemplate", Assert.Single(response.Errors).Code);
     }
 
-    private static ImportsController CreateController() =>
+    [Fact]
+    public void ClearProducerPriceIndices_RemovesValidatedIndexFileFromWorkspace()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveProducerPriceIndices(
+            "endeks.xlsx",
+            [new MonthlyProducerPriceIndexInput(new DateOnly(2021, 12, 1), 100m)]);
+        var controller = CreateController(workspace);
+
+        var result = controller.ClearProducerPriceIndices();
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Null(workspace.Get().ProducerPriceIndices);
+    }
+
+    private static ImportsController CreateController(
+        IReportWorkspaceSession? workspace = null) =>
         new(
             new ReadAssetValuesService([new ClosedXmlAssetFileParser()]),
             new ReadProducerPriceIndicesService(
                 [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]),
-            new TestReportWorkspaceSession());
+            workspace ?? new TestReportWorkspaceSession());
 
     private static MemoryStream CreateIndexWorkbook()
     {

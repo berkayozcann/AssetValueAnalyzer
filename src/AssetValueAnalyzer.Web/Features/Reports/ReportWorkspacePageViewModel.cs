@@ -11,20 +11,13 @@ public sealed record ReportWorkspacePageViewModel(
     public bool HasBothFiles => AssetValues is not null && ProducerPriceIndices is not null;
 
     public static ReportWorkspacePageViewModel FromSnapshot(
-        ReportWorkspaceSnapshot snapshot) =>
+        ReportWorkspaceSnapshot snapshot,
+        ExchangeRateCardViewModel exchangeRate) =>
         new(
             snapshot.Status,
-            CreateExchangeRatePreview(),
+            exchangeRate,
             ReportDataFileSummaryViewModel.FromSnapshot(snapshot.AssetValues),
             ReportDataFileSummaryViewModel.FromSnapshot(snapshot.ProducerPriceIndices));
-
-    private static ExchangeRateCardViewModel CreateExchangeRatePreview() =>
-        new(
-            FormattedRate: "41,2874",
-            TrendText: "Artış",
-            LastSyncText: "Tasarım önizlemesi",
-            Trend: ExchangeRateTrend.Increased,
-            IsDemo: true);
 }
 
 public sealed record ReportDataFileSummaryViewModel(
@@ -33,6 +26,9 @@ public sealed record ReportDataFileSummaryViewModel(
     DateOnly? FirstMonth,
     DateOnly? LastMonth)
 {
+    public string? MonthRange =>
+        MonthDisplayFormatter.FormatRange(FirstMonth, LastMonth);
+
     public static ReportDataFileSummaryViewModel? FromSnapshot(
         ReportDataFileSnapshot? snapshot) =>
         snapshot is null

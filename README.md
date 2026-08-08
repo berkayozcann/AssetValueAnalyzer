@@ -1,6 +1,6 @@
 # Asset Value Analyzer
 
-ASP.NET Core MVC ile geliştirilen finansal varlık analizi uygulaması. Bu repository şu anda onaylanan kullanıcı arayüzünün çalışan ilk dilimini içerir. Ekranlardaki finansal değerler açıkça `Demo` veya `Örnek Veri` olarak işaretlenmiş sentetik verilerdir; gerçek kur senkronizasyonu, dosya importu ve finansal hesaplama sonraki dikey dilimlerde bağlanacaktır.
+ASP.NET Core MVC ile geliştirilen finansal varlık analizi uygulaması. Uygulama, XLSX/XML varlık ve ÜFE verilerini doğrular; MSSQL'de tutulan USD/TRY kurlarıyla finansal etki raporunu hesaplar ve sonucu aylık detaylarıyla sunar.
 
 ## Kullanılan teknolojiler
 
@@ -56,7 +56,7 @@ pnpm run css:watch
 ## Mevcut ekranlar
 
 - `/`: Üç adımlı rapor oluşturma tasarım önizlemesi
-- `/reports/sample`: Sentetik verilerle örnek rapor ve 14 kolonlu detay tablosu
+- `/reports`: Hazırlanan veya tamamlanan finansal etki analizi raporu
 
 ## Güvenlik
 

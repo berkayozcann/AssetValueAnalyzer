@@ -1,7 +1,10 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.External;
+using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
+using AssetValueAnalyzer.Application.Reports.Calculation;
+using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
@@ -69,6 +72,11 @@ public static class DependencyInjection
         services.AddScoped<IProducerPriceIndexFileParser, ClosedXmlProducerPriceIndexFileParser>();
         services.AddScoped<IProducerPriceIndexFileParser, XmlProducerPriceIndexFileParser>();
         services.AddScoped<ReadProducerPriceIndicesService>();
+        services.AddSingleton<FinancialImpactCalculator>();
+        services.AddSingleton<FinancialImpactReportRangeValidator>();
+        services.AddScoped<IUsdCashChangeRateReader, EfUsdCashChangeRateReader>();
+        services.AddScoped<ICurrentUsdExchangeRateReader, EfCurrentUsdExchangeRateReader>();
+        services.AddScoped<CreateFinancialImpactReportService>();
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         return services;

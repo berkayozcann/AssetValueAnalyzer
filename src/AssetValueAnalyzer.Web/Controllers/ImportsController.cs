@@ -21,6 +21,14 @@ public sealed class ImportsController(
         IFormFile? file,
         CancellationToken cancellationToken)
     {
+        if (reportWorkspaceSession.Get().CompletedReport is not null)
+        {
+            return Conflict(AssetFileValidationResult.Invalid(
+                new AssetImportValidationError(
+                    "CompletedReportLocked",
+                    "Yeni bir dosya yüklemek için önce yeni rapor oluşturma akışını başlatın.")));
+        }
+
         if (file is null)
         {
             return UnprocessableEntity(AssetFileValidationResult.Invalid(
@@ -54,6 +62,14 @@ public sealed class ImportsController(
         IFormFile? file,
         CancellationToken cancellationToken)
     {
+        if (reportWorkspaceSession.Get().CompletedReport is not null)
+        {
+            return Conflict(ProducerPriceIndexFileValidationResult.Invalid(
+                new ProducerPriceIndexImportValidationError(
+                    "CompletedReportLocked",
+                    "Yeni bir dosya yüklemek için önce yeni rapor oluşturma akışını başlatın.")));
+        }
+
         if (file is null)
         {
             return UnprocessableEntity(ProducerPriceIndexFileValidationResult.Invalid(
@@ -78,5 +94,31 @@ public sealed class ImportsController(
 
         reportWorkspaceSession.SaveProducerPriceIndices(file.FileName, parseResult.Values);
         return Ok(response);
+    }
+
+    [HttpPost("assets/clear")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ClearAssets()
+    {
+        if (reportWorkspaceSession.Get().CompletedReport is not null)
+        {
+            return Conflict();
+        }
+
+        reportWorkspaceSession.ClearAssetValues();
+        return NoContent();
+    }
+
+    [HttpPost("indices/clear")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ClearProducerPriceIndices()
+    {
+        if (reportWorkspaceSession.Get().CompletedReport is not null)
+        {
+            return Conflict();
+        }
+
+        reportWorkspaceSession.ClearProducerPriceIndices();
+        return NoContent();
     }
 }
