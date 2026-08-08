@@ -3,7 +3,9 @@
 @model ReportPageViewModel
 
 @{
-    ViewData["Title"] = "Rapor Sonucu";
+    ViewData["Title"] = Model.IsSample
+        ? "Örnek Finansal Etki Analizi Raporu"
+        : "Finansal Etki Analizi Raporu";
     ViewData["ActiveNavigation"] = "Reports";
 
     static string ValueTone(string value) => value switch
@@ -21,7 +23,7 @@
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div class="max-w-3xl">
             <div class="flex flex-wrap items-center gap-4">
-                <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Finansal Etki Raporu</h1>
+                <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Finansal Etki Analizi Raporu</h1>
                 @if (Model.IsSample)
                 {
                     <span class="rounded-lg border border-brand-400/25 bg-brand-500/15 px-3 py-1.5 text-sm font-medium text-brand-400">Örnek Veri</span>
@@ -35,7 +37,7 @@
 
     <div class="mt-5 flex flex-wrap justify-end gap-3">
         <a class="secondary-button inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium"
-           asp-controller="Home" asp-action="Index">
+           asp-controller="Reports" asp-action="New">
             <span aria-hidden="true">＋</span> Yeni Rapor
         </a>
         <div class="relative" data-date-range>

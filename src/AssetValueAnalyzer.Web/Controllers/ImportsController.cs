@@ -1,5 +1,6 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
+using AssetValueAnalyzer.Web.Features.Reports;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssetValueAnalyzer.Web.Controllers;
@@ -7,7 +8,8 @@ namespace AssetValueAnalyzer.Web.Controllers;
 [Route("imports")]
 public sealed class ImportsController(
     ReadAssetValuesService readAssetValuesService,
-    ReadProducerPriceIndicesService readProducerPriceIndicesService) : Controller
+    ReadProducerPriceIndicesService readProducerPriceIndicesService,
+    IReportWorkspaceSession reportWorkspaceSession) : Controller
 {
     private const long MultipartRequestLimit =
         ReadAssetValuesService.MaxFileSize + (64 * 1024);
@@ -35,9 +37,14 @@ public sealed class ImportsController(
             cancellationToken);
         var response = AssetFileValidationResult.FromParseResult(parseResult);
 
-        return response.IsValid
-            ? Ok(response)
-            : UnprocessableEntity(response);
+        if (!response.IsValid)
+        {
+            reportWorkspaceSession.ClearAssetValues();
+            return UnprocessableEntity(response);
+        }
+
+        reportWorkspaceSession.SaveAssetValues(file.FileName, parseResult.Values);
+        return Ok(response);
     }
 
     [HttpPost("indices/validate")]
@@ -63,8 +70,13 @@ public sealed class ImportsController(
             cancellationToken);
         var response = ProducerPriceIndexFileValidationResult.FromParseResult(parseResult);
 
-        return response.IsValid
-            ? Ok(response)
-            : UnprocessableEntity(response);
+        if (!response.IsValid)
+        {
+            reportWorkspaceSession.ClearProducerPriceIndices();
+            return UnprocessableEntity(response);
+        }
+
+        reportWorkspaceSession.SaveProducerPriceIndices(file.FileName, parseResult.Values);
+        return Ok(response);
     }
 }

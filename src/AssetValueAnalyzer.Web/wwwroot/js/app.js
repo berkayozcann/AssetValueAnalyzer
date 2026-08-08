@@ -346,12 +346,14 @@ document.addEventListener("DOMContentLoaded", () => {
     step: 1,
     assetFile: null,
     indexFile: null,
-    assetValidationState: "idle",
+    assetFileName: wizard.dataset.assetFileName || null,
+    indexFileName: wizard.dataset.indexFileName || null,
+    assetValidationState: wizard.dataset.assetReady === "true" ? "valid" : "idle",
     assetValidationRequestId: 0,
-    indexValidationState: "idle",
+    indexValidationState: wizard.dataset.indexReady === "true" ? "valid" : "idle",
     indexValidationRequestId: 0,
-    assetFirstMonth: null,
-    assetLastMonth: null,
+    assetFirstMonth: wizard.dataset.assetFirstMonth || null,
+    assetLastMonth: wizard.dataset.assetLastMonth || null,
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -564,6 +566,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const validation = row.querySelector("[data-file-validation]");
 
     if (file) {
+      if (kind === "assetFile") {
+        state.assetFileName = file.name;
+      } else {
+        state.indexFileName = file.name;
+      }
+
       name.textContent = file.name;
       name.classList.remove("text-slate-400");
       name.classList.add("text-white");
@@ -586,6 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
       status.classList.add("hidden");
 
       if (kind === "assetFile") {
+        state.assetFileName = null;
         state.assetValidationRequestId++;
         state.assetValidationState = "idle";
         state.assetFirstMonth = null;
@@ -593,6 +602,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resetWizardRange();
         setValidationMessage(validation, "");
       } else {
+        state.indexFileName = null;
         state.indexValidationRequestId++;
         state.indexValidationState = "idle";
         setValidationMessage(validation, "");
@@ -633,11 +643,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const updateFileSummaries = () => {
     wizard.querySelectorAll("[data-summary-asset]").forEach((element) => {
-      element.textContent = state.assetFile?.name ?? "—";
+      element.textContent = state.assetFileName ?? "—";
     });
 
     wizard.querySelectorAll("[data-summary-index]").forEach((element) => {
-      element.textContent = state.indexFile?.name ?? "—";
+      element.textContent = state.indexFileName ?? "—";
     });
   };
 
@@ -690,5 +700,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  updateFileSummaries();
+  updateContinueState();
   renderStep();
 });

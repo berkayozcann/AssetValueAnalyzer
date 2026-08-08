@@ -3,6 +3,7 @@ using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
+using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
@@ -72,7 +73,8 @@ public sealed class ProducerPriceIndexUploadControllerTests
         new(
             new ReadAssetValuesService([new ClosedXmlAssetFileParser()]),
             new ReadProducerPriceIndicesService(
-                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]));
+                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]),
+            new TestReportWorkspaceSession());
 
     private static MemoryStream CreateIndexWorkbook()
     {

@@ -3,7 +3,9 @@ using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
+using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
+using AssetValueAnalyzer.Web.Features.Reports;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,7 +24,8 @@ public sealed class AssetUploadControllerTests
                   <AssetValue><Month>2022-01</Month><Amount>1050000.00</Amount></AssetValue>
                 </AssetValues>
                 """));
-        var controller = CreateController();
+        var workspace = new TestReportWorkspaceSession();
+        var controller = CreateController(workspace);
         var file = new FormFile(stream, 0, stream.Length, "file", "serbest-ad.xml");
 
         var result = await controller.UploadAssets(file, CancellationToken.None);
@@ -33,12 +36,17 @@ public sealed class AssetUploadControllerTests
         Assert.Equal(2, response.ParsedCount);
         Assert.Equal(new DateOnly(2021, 12, 1), response.FirstMonth);
         Assert.Equal(new DateOnly(2022, 1, 1), response.LastMonth);
+        var storedFile = Assert.IsType<ReportDataFileSnapshot>(workspace.Get().AssetValues);
+        Assert.Equal("serbest-ad.xml", storedFile.FileName);
+        Assert.Equal(2, storedFile.ParsedCount);
     }
 
-    private static ImportsController CreateController() =>
+    private static ImportsController CreateController(
+        IReportWorkspaceSession? workspace = null) =>
         new(
             new ReadAssetValuesService(
                 [new ClosedXmlAssetFileParser(), new XmlAssetFileParser()]),
             new ReadProducerPriceIndicesService(
-                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]));
+                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]),
+            workspace ?? new TestReportWorkspaceSession());
 }

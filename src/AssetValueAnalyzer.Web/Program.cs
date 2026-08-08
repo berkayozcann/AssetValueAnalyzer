@@ -1,10 +1,22 @@
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Web.Features.Reports;
 using AssetValueAnalyzer.Web.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".AssetValueAnalyzer.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.IdleTimeout = TimeSpan.FromHours(2);
+});
+builder.Services.AddScoped<IReportWorkspaceSession, ReportWorkspaceSession>();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<ExchangeRateInitializationHostedService>();
 
@@ -21,6 +33,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseSession();
 app.UseAuthorization();
 
 app.MapStaticAssets();

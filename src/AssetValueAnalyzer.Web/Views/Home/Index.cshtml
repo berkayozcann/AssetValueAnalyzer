@@ -3,21 +3,33 @@
 @model DashboardPageViewModel
 
 @{
-    ViewData["Title"] = "Finansal Etki Raporu";
+    ViewData["Title"] = "Finansal Etki Analizi";
     ViewData["ActiveNavigation"] = "Home";
+
+    var assetFile = Model.AssetValues;
+    var indexFile = Model.ProducerPriceIndices;
+    var assetFirstMonth = assetFile?.FirstMonth?.ToString("yyyy-MM");
+    var assetLastMonth = assetFile?.LastMonth?.ToString("yyyy-MM");
 }
 
 <section class="app-shell pb-12 pt-10 lg:pt-12">
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div class="max-w-3xl">
-            <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Finansal Etki Raporu</h1>
+            <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Finansal Etki Analizi</h1>
             <p class="mt-4 text-base muted-copy sm:text-lg">Varlık ve endeks verilerinizi yükleyin, tarih aralığını seçin ve finansal etkinizi analiz edin.</p>
         </div>
 
         <partial name="_ExchangeRateCard" model="Model.ExchangeRate" />
     </div>
 
-    <section class="glass-panel report-builder-panel mt-9 overflow-hidden rounded-[2rem]" data-report-wizard>
+    <section class="glass-panel report-builder-panel mt-9 overflow-hidden rounded-[2rem]"
+             data-report-wizard
+             data-asset-ready="@(assetFile is not null ? "true" : "false")"
+             data-asset-file-name="@(assetFile?.FileName ?? string.Empty)"
+             data-asset-first-month="@(assetFirstMonth ?? string.Empty)"
+             data-asset-last-month="@(assetLastMonth ?? string.Empty)"
+             data-index-ready="@(indexFile is not null ? "true" : "false")"
+             data-index-file-name="@(indexFile?.FileName ?? string.Empty)">
         <div class="report-builder-content px-6 py-7 sm:px-10 lg:px-14 lg:py-9">
             <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div class="flex items-center gap-5">
@@ -34,7 +46,7 @@
                 </div>
 
                 <a class="inline-flex items-center gap-2 self-start text-sm font-medium text-brand-400 transition hover:text-accent-300"
-                   asp-controller="Reports" asp-action="Sample">
+                   asp-controller="Reports" asp-action="Example">
                     Örnek Raporu Gör
                     <span aria-hidden="true">→</span>
                 </a>
@@ -70,10 +82,10 @@
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-4">
                                     <h3 class="text-lg font-semibold text-white">Varlık Verisi</h3>
-                                    <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm text-slate-400" data-file-name>Henüz dosya seçilmedi</span>
-                                    <span class="hidden rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400" data-file-status>Seçildi</span>
+                                    <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm @(assetFile is null ? "text-slate-400" : "text-white")" data-file-name>@(assetFile?.FileName ?? "Henüz dosya seçilmedi")</span>
+                                    <span class="rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400 @(assetFile is null ? "hidden" : string.Empty)" data-file-status>@(assetFile is null ? "Seçildi" : "Doğrulandı")</span>
                                 </div>
-                                <p class="mt-3 text-sm text-slate-400" data-file-validation aria-live="polite"></p>
+                                <p class="mt-3 text-sm @(assetFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(assetFile is null ? string.Empty : $"{assetFile.ParsedCount} aylık kayıt bu oturum için hazır · {assetFirstMonth} – {assetLastMonth}")</p>
                                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                                     <a href="~/samples/asset-values.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
@@ -98,10 +110,10 @@
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-4">
                                     <h3 class="text-lg font-semibold text-white">Endeks Verisi</h3>
-                                    <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm text-slate-400" data-file-name>Henüz dosya seçilmedi</span>
-                                    <span class="hidden rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400" data-file-status>Seçildi</span>
+                                    <span class="max-w-full truncate rounded-lg border border-dashed border-slate-600 px-4 py-2 text-sm @(indexFile is null ? "text-slate-400" : "text-white")" data-file-name>@(indexFile?.FileName ?? "Henüz dosya seçilmedi")</span>
+                                    <span class="rounded-full border border-positive-400/45 px-3 py-1 text-xs text-positive-400 @(indexFile is null ? "hidden" : string.Empty)" data-file-status>@(indexFile is null ? "Seçildi" : "Doğrulandı")</span>
                                 </div>
-                                <p class="mt-3 text-sm text-slate-400" data-file-validation aria-live="polite"></p>
+                                <p class="mt-3 text-sm @(indexFile is null ? "text-slate-400" : "text-positive-400")" data-file-validation aria-live="polite">@(indexFile is null ? string.Empty : $"{indexFile.ParsedCount} aylık kayıt bu oturum için hazır")</p>
                                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                                     <a href="~/samples/producer-price-indices.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
@@ -130,15 +142,15 @@
                         </svg>
                         Varlık ve Endeks dosyaları doğrulandıktan sonra tarih adımına geçebilirsiniz.
                     </p>
-                    <button type="button" class="primary-button min-w-48 rounded-lg px-8 py-3 font-semibold" data-step-one-continue data-go-step="2" disabled>Devam Et</button>
+                    <button type="button" class="primary-button min-w-48 rounded-lg px-8 py-3 font-semibold" data-step-one-continue data-go-step="2" disabled="@(assetFile is null || indexFile is null)">Devam Et</button>
                 </div>
             </div>
 
             <div class="wizard-stage mt-8" data-step-panel="2" hidden>
                 <div class="flex flex-col gap-4 rounded-2xl border border-line-700 bg-canvas-950/55 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-                    <p class="truncate text-sm text-slate-300"><span class="mr-2 text-positive-400">✓</span><strong class="text-white">Varlık:</strong> <span data-summary-asset>Seçilen dosya</span></p>
+                    <p class="truncate text-sm text-slate-300"><span class="mr-2 text-positive-400">✓</span><strong class="text-white">Varlık:</strong> <span data-summary-asset>@(assetFile?.FileName ?? "Seçilen dosya")</span></p>
                     <span class="hidden h-8 w-px bg-line-700 lg:block" aria-hidden="true"></span>
-                    <p class="truncate text-sm text-slate-300"><span class="mr-2 text-positive-400">✓</span><strong class="text-white">Endeks:</strong> <span data-summary-index>Seçilen dosya</span></p>
+                    <p class="truncate text-sm text-slate-300"><span class="mr-2 text-positive-400">✓</span><strong class="text-white">Endeks:</strong> <span data-summary-index>@(indexFile?.FileName ?? "Seçilen dosya")</span></p>
                 </div>
 
                 <div class="mt-7">
@@ -151,7 +163,7 @@
                                 "Başlangıç ve bitiş ayı seçilmezse: Varlık dosyasındaki ilk ve son ay kullanılır.\n\nYalnızca başlangıç ayı seçilirse: Seçilen aydan dosyanın son ayına kadar hesaplanır.\n\nYalnızca bitiş ayı seçilirse: Dosyanın ilk ayından seçilen aya kadar hesaplanır.\n\nFinansal değişim hesabı için en az iki farklı ay gerekir."))
                     </h3>
                     <div class="mt-5 grid gap-5 md:grid-cols-2">
-                        <div class="relative" data-month-picker data-min-month="2021-12" data-max-month="2023-08">
+                        <div class="relative" data-month-picker data-min-month="@(assetFirstMonth ?? "2021-12")" data-max-month="@(assetLastMonth ?? "2023-08")">
                             <span class="mb-2 block text-sm text-slate-400">Başlangıç Ayı</span>
                             <button type="button"
                                     class="field-card flex w-full items-center justify-between rounded-xl px-5 py-4 text-left"
@@ -178,7 +190,7 @@
                                 <button type="button" class="mt-3 text-sm text-accent-300" data-month-picker-clear>Seçimi temizle</button>
                             </section>
                         </div>
-                        <div class="relative" data-month-picker data-min-month="2021-12" data-max-month="2023-08">
+                        <div class="relative" data-month-picker data-min-month="@(assetFirstMonth ?? "2021-12")" data-max-month="@(assetLastMonth ?? "2023-08")">
                             <span class="mb-2 block text-sm text-slate-400">Bitiş Ayı</span>
                             <button type="button"
                                     class="field-card flex w-full items-center justify-between rounded-xl px-5 py-4 text-left"
@@ -252,7 +264,7 @@
                 <div class="mt-auto flex items-center justify-between gap-4 pt-6">
                     <button type="button" class="secondary-button rounded-lg px-8 py-3 font-medium" data-go-step="2">Geri</button>
                     <a class="primary-button inline-flex min-w-48 items-center justify-center rounded-lg px-8 py-3 font-semibold"
-                       asp-controller="Reports" asp-action="Sample">Örnek Raporu Aç</a>
+                       asp-controller="Reports" asp-action="Example">Örnek Raporu Aç</a>
                 </div>
             </div>
         </div>
