@@ -40,8 +40,11 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<ExchangeRateSynchronizationService>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<InitializeExchangeRatesService>());
-        Assert.IsType<ClosedXmlAssetFileParser>(
-            scope.ServiceProvider.GetRequiredService<IAssetFileParser>());
+        var assetParsers = scope.ServiceProvider
+            .GetServices<IAssetFileParser>()
+            .ToArray();
+        Assert.Contains(assetParsers, parser => parser is ClosedXmlAssetFileParser);
+        Assert.Contains(assetParsers, parser => parser is XmlAssetFileParser);
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadAssetValuesService>());
         Assert.IsType<ClosedXmlProducerPriceIndexFileParser>(

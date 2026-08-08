@@ -7,6 +7,26 @@ namespace AssetValueAnalyzer.IntegrationTests.Assets;
 public sealed class ClosedXmlAssetFileParserTests
 {
     [Fact]
+    public async Task ParseAsync_WithDownloadableSample_ReturnsExpectedMonthlyValues()
+    {
+        var samplePath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../..",
+            "src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx"));
+        await using var stream = File.OpenRead(samplePath);
+        var parser = new ClosedXmlAssetFileParser();
+
+        var result = await parser.ParseAsync(stream, CancellationToken.None);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(22, result.Values.Count);
+        Assert.Equal(new DateOnly(2021, 12, 1), result.Values[0].Month);
+        Assert.Equal(1_280_000m, result.Values[0].Amount);
+        Assert.Equal(new DateOnly(2023, 9, 1), result.Values[^1].Month);
+        Assert.Equal(2_120_000m, result.Values[^1].Amount);
+    }
+
+    [Fact]
     public async Task ParseAsync_WithExpectedTemplate_ReturnsMonthlyValues()
     {
         await using var stream = CreateWorkbook(

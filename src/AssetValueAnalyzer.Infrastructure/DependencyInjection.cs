@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<ExchangeRateSynchronizationService>();
         services.AddScoped<InitializeExchangeRatesService>();
         services.AddScoped<IAssetFileParser, ClosedXmlAssetFileParser>();
+        services.AddScoped<IAssetFileParser, XmlAssetFileParser>();
         services.AddScoped<ReadAssetValuesService>();
         services.AddScoped<IProducerPriceIndexFileParser, ClosedXmlProducerPriceIndexFileParser>();
         services.AddScoped<ReadProducerPriceIndicesService>();

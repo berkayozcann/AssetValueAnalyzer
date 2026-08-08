@@ -113,12 +113,42 @@ public sealed class ReadAssetValuesServiceTests
         Assert.Equal(0, parser.CallCount);
     }
 
-    private sealed class StubAssetFileParser(AssetFileParseResult result)
+    [Fact]
+    public async Task ReadAsync_WithXmlExtension_SelectsXmlParser()
+    {
+        var xlsxParser = new StubAssetFileParser(
+            new AssetFileParseResult([], []),
+            ".xlsx");
+        var xmlParser = new StubAssetFileParser(
+            new AssetFileParseResult(
+                [new MonthlyAssetValueInput(new DateOnly(2022, 5, 1), 1_500_000m)],
+                []),
+            ".xml");
+        var service = new ReadAssetValuesService([xlsxParser, xmlParser]);
+
+        var result = await service.ReadAsync(
+            new MemoryStream([1]),
+            "istedigim-dosya-adi.XML",
+            1,
+            CancellationToken.None);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(0, xlsxParser.CallCount);
+        Assert.Equal(1, xmlParser.CallCount);
+    }
+
+    private sealed class StubAssetFileParser(
+        AssetFileParseResult result,
+        string supportedExtension = ".xlsx")
         : IAssetFileParser
     {
         public int CallCount { get; private set; }
 
-        public bool CanParse(string fileExtension) => fileExtension == ".xlsx";
+        public bool CanParse(string fileExtension) =>
+            string.Equals(
+                fileExtension,
+                supportedExtension,
+                StringComparison.OrdinalIgnoreCase);
 
         public Task<AssetFileParseResult> ParseAsync(
             Stream stream,
