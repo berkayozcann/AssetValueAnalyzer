@@ -133,8 +133,6 @@ public sealed class XmlProducerPriceIndexFileParser
                 "Endeks XML dosyasında işlenecek aylık kayıt bulunamadı."));
         }
 
-        AddMissingMonthErrors(values, errors);
-
         return new ProducerPriceIndexFileParseResult(
             values.OrderBy(value => value.Month).ToArray(),
             errors);
@@ -169,32 +167,6 @@ public sealed class XmlProducerPriceIndexFileParser
 
         month = default;
         return false;
-    }
-
-    private static void AddMissingMonthErrors(
-        IReadOnlyCollection<MonthlyProducerPriceIndexInput> values,
-        ICollection<ProducerPriceIndexImportValidationError> errors)
-    {
-        if (values.Count == 0)
-        {
-            return;
-        }
-
-        var presentMonths = values.Select(value => value.Month).ToHashSet();
-        var firstMonth = values.Min(value => value.Month);
-        var lastMonth = values.Max(value => value.Month);
-
-        for (var month = firstMonth;
-             month <= lastMonth;
-             month = month.AddMonths(1))
-        {
-            if (!presentMonths.Contains(month))
-            {
-                errors.Add(new(
-                    "MissingMonth",
-                    $"{month:yyyy-MM} ayına ait endeks değeri bulunamadı."));
-            }
-        }
     }
 
     private static int? GetLineNumber(XObject node) =>

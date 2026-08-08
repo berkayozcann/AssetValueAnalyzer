@@ -56,7 +56,7 @@ public sealed class XmlProducerPriceIndexFileParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_WithMissingMonth_ReturnsValidationError()
+    public async Task ParseAsync_WithOmittedMonth_ReturnsAvailableMonths()
     {
         await using var stream = CreateStream(
             """
@@ -69,9 +69,11 @@ public sealed class XmlProducerPriceIndexFileParserTests
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error =>
-            error.Code == "MissingMonth" && error.Message.Contains("2022-02"));
+        Assert.True(result.IsValid);
+        Assert.Collection(
+            result.Values,
+            value => Assert.Equal(new DateOnly(2022, 1, 1), value.Month),
+            value => Assert.Equal(new DateOnly(2022, 3, 1), value.Month));
     }
 
     [Theory]

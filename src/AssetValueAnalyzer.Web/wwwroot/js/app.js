@@ -111,14 +111,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const yearLabel = picker.querySelector("[data-month-year]");
     const previousYear = picker.querySelector("[data-month-year-previous]");
     const nextYear = picker.querySelector("[data-month-year-next]");
+    const clear = picker.querySelector("[data-month-picker-clear]");
     const grid = picker.querySelector("[data-month-grid]");
-    const minMonth = picker.dataset.minMonth;
-    const maxMonth = picker.dataset.maxMonth;
-    const minYear = Number(minMonth.slice(0, 4));
-    const maxYear = Number(maxMonth.slice(0, 4));
-    let viewYear = Number(input.value.slice(0, 4));
+    const getBounds = () => {
+      const minMonth = picker.dataset.minMonth;
+      const maxMonth = picker.dataset.maxMonth;
+
+      return {
+        minMonth,
+        maxMonth,
+        minYear: Number(minMonth.slice(0, 4)),
+        maxYear: Number(maxMonth.slice(0, 4)),
+      };
+    };
+    let viewYear = Number(input.value.slice(0, 4)) || getBounds().minYear;
 
     const renderMonths = () => {
+      const { minMonth, maxMonth, minYear, maxYear } = getBounds();
       yearLabel.textContent = String(viewYear);
       previousYear.disabled = viewYear <= minYear;
       nextYear.disabled = viewYear >= maxYear;
@@ -151,6 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener("click", () => {
           input.value = value;
           display.textContent = formatMonth(value);
+          display.classList.add("text-white");
+          display.classList.remove("text-slate-400");
           panel.hidden = true;
           toggle.setAttribute("aria-expanded", "false");
           input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -172,22 +183,35 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      viewYear = Number(input.value.slice(0, 4));
+      viewYear = Number(input.value.slice(0, 4)) || getBounds().minYear;
       renderMonths();
       positionMonthPanel(toggle, panel);
       toggle.setAttribute("aria-expanded", "true");
     });
 
     previousYear.addEventListener("click", () => {
+      const { minYear } = getBounds();
       viewYear = Math.max(minYear, viewYear - 1);
       renderMonths();
       positionMonthPanel(toggle, panel);
     });
 
     nextYear.addEventListener("click", () => {
+      const { maxYear } = getBounds();
       viewYear = Math.min(maxYear, viewYear + 1);
       renderMonths();
       positionMonthPanel(toggle, panel);
+    });
+
+    clear?.addEventListener("click", () => {
+      input.value = "";
+      display.textContent = "Seçilmedi";
+      display.classList.add("text-slate-400");
+      display.classList.remove("text-white");
+      panel.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      toggle.focus();
     });
 
     renderMonths();
@@ -326,6 +350,8 @@ document.addEventListener("DOMContentLoaded", () => {
     assetValidationRequestId: 0,
     indexValidationState: "idle",
     indexValidationRequestId: 0,
+    assetFirstMonth: null,
+    assetLastMonth: null,
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -338,9 +364,38 @@ document.addEventListener("DOMContentLoaded", () => {
   const endMonthInput = wizard.querySelector("#endMonth");
 
   const validateWizardRange = () => {
-    const isValid = startMonthInput.value <= endMonthInput.value;
+    const startMonth = startMonthInput.value || state.assetFirstMonth;
+    const endMonth = endMonthInput.value || state.assetLastMonth;
+    let message = "";
+
+    if (startMonth && endMonth && startMonth === endMonth) {
+      message = "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
+    } else if (startMonth && endMonth && startMonth > endMonth) {
+      message = "Başlangıç ayı bitiş ayından sonra olamaz.";
+    }
+
+    const isValid = message.length === 0;
+    rangeError.textContent = message;
     rangeError.hidden = isValid;
     return isValid;
+  };
+
+  const resetWizardRange = () => {
+    wizard.querySelectorAll("[data-month-picker]").forEach((picker) => {
+      if (state.assetFirstMonth && state.assetLastMonth) {
+        picker.dataset.minMonth = state.assetFirstMonth;
+        picker.dataset.maxMonth = state.assetLastMonth;
+      }
+
+      const input = picker.querySelector("[data-month-picker-input]");
+      const display = picker.querySelector("[data-month-picker-display]");
+      input.value = "";
+      display.textContent = "Seçilmedi";
+      display.classList.add("text-slate-400");
+      display.classList.remove("text-white");
+    });
+
+    validateWizardRange();
   };
 
   startMonthInput.addEventListener("change", validateWizardRange);
@@ -417,6 +472,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       state.assetValidationState = "valid";
+      state.assetFirstMonth = result.firstMonth.slice(0, 7);
+      state.assetLastMonth = result.lastMonth.slice(0, 7);
+      resetWizardRange();
       setStatus(status, "Doğrulandı", "positive");
       setValidationMessage(
         validation,
@@ -511,6 +569,9 @@ document.addEventListener("DOMContentLoaded", () => {
       name.classList.add("text-white");
 
       if (kind === "assetFile") {
+        state.assetFirstMonth = null;
+        state.assetLastMonth = null;
+        resetWizardRange();
         const requestId = ++state.assetValidationRequestId;
         await validateAssetFile(file, row, requestId);
       } else {
@@ -527,6 +588,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (kind === "assetFile") {
         state.assetValidationRequestId++;
         state.assetValidationState = "idle";
+        state.assetFirstMonth = null;
+        state.assetLastMonth = null;
+        resetWizardRange();
         setValidationMessage(validation, "");
       } else {
         state.indexValidationRequestId++;
@@ -600,10 +664,24 @@ document.addEventListener("DOMContentLoaded", () => {
       updateFileSummaries();
 
       if (nextStep === 3) {
+        const selectedStart = startMonthInput.value;
+        const selectedEnd = endMonthInput.value;
+        const effectiveStart = selectedStart || state.assetFirstMonth;
+        const effectiveEnd = selectedEnd || state.assetLastMonth;
+        let automaticLabel = "";
+
+        if (!selectedStart && !selectedEnd) {
+          automaticLabel = " (otomatik)";
+        } else if (!selectedStart) {
+          automaticLabel = " (başlangıç otomatik)";
+        } else if (!selectedEnd) {
+          automaticLabel = " (bitiş otomatik)";
+        }
+
         wizard.querySelector("[data-summary-period]").textContent =
-          `${formatMonth(startMonthInput.value)} – ${formatMonth(endMonthInput.value)}`;
+          `${formatMonth(effectiveStart)} – ${formatMonth(effectiveEnd)}${automaticLabel}`;
         wizard.querySelector("[data-summary-duration]").textContent =
-          `${countMonthsInclusive(startMonthInput.value, endMonthInput.value)} ay`;
+          `${countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
       }
 
       closeMonthPickers();

@@ -161,37 +161,9 @@ public sealed class ClosedXmlProducerPriceIndexFileParser
                 "Endeks dosyasında işlenebilecek aylık veri bulunamadı."));
         }
 
-        AddMissingMonthErrors(values, errors);
-
         return new ProducerPriceIndexFileParseResult(
             values.OrderBy(value => value.Month).ToArray(),
             errors);
-    }
-
-    private static void AddMissingMonthErrors(
-        IReadOnlyCollection<MonthlyProducerPriceIndexInput> values,
-        ICollection<ProducerPriceIndexImportValidationError> errors)
-    {
-        if (values.Count == 0)
-        {
-            return;
-        }
-
-        var presentMonths = values.Select(value => value.Month).ToHashSet();
-        var firstMonth = values.Min(value => value.Month);
-        var lastMonth = values.Max(value => value.Month);
-
-        for (var month = firstMonth;
-             month <= lastMonth;
-             month = month.AddMonths(1))
-        {
-            if (!presentMonths.Contains(month))
-            {
-                errors.Add(new(
-                    "MissingMonth",
-                    $"{month:yyyy-MM} ayına ait endeks değeri bulunamadı."));
-            }
-        }
     }
 
     private static bool TryFindIndexWorksheet(
