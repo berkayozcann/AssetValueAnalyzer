@@ -40,5 +40,5 @@ public sealed class AssetUploadControllerTests
             new ReadAssetValuesService(
                 [new ClosedXmlAssetFileParser(), new XmlAssetFileParser()]),
             new ReadProducerPriceIndicesService(
-                [new ClosedXmlProducerPriceIndexFileParser()]));
+                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]));
 }

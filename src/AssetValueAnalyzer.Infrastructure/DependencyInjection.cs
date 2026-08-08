@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IAssetFileParser, XmlAssetFileParser>();
         services.AddScoped<ReadAssetValuesService>();
         services.AddScoped<IProducerPriceIndexFileParser, ClosedXmlProducerPriceIndexFileParser>();
+        services.AddScoped<IProducerPriceIndexFileParser, XmlProducerPriceIndexFileParser>();
         services.AddScoped<ReadProducerPriceIndicesService>();
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 

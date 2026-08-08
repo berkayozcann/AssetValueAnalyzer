@@ -47,8 +47,15 @@ public sealed class DependencyInjectionTests
         Assert.Contains(assetParsers, parser => parser is XmlAssetFileParser);
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadAssetValuesService>());
-        Assert.IsType<ClosedXmlProducerPriceIndexFileParser>(
-            scope.ServiceProvider.GetRequiredService<IProducerPriceIndexFileParser>());
+        var producerPriceIndexParsers = scope.ServiceProvider
+            .GetServices<IProducerPriceIndexFileParser>()
+            .ToArray();
+        Assert.Contains(
+            producerPriceIndexParsers,
+            parser => parser is ClosedXmlProducerPriceIndexFileParser);
+        Assert.Contains(
+            producerPriceIndexParsers,
+            parser => parser is XmlProducerPriceIndexFileParser);
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadProducerPriceIndicesService>());
         Assert.Same(

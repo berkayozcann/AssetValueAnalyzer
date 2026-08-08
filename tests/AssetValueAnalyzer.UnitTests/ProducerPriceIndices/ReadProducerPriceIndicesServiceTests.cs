@@ -64,12 +64,42 @@ public sealed class ReadProducerPriceIndicesServiceTests
         Assert.Equal(0, parser.CallCount);
     }
 
-    private sealed class StubParser(ProducerPriceIndexFileParseResult result)
+    [Fact]
+    public async Task ReadAsync_WithXmlExtension_SelectsXmlParser()
+    {
+        var xlsxParser = new StubParser(
+            new ProducerPriceIndexFileParseResult([], []),
+            ".xlsx");
+        var xmlParser = new StubParser(
+            new ProducerPriceIndexFileParseResult(
+                [new MonthlyProducerPriceIndexInput(new DateOnly(2006, 1, 1), 122.38m)],
+                []),
+            ".xml");
+        var service = new ReadProducerPriceIndicesService([xlsxParser, xmlParser]);
+
+        var result = await service.ReadAsync(
+            new MemoryStream([1]),
+            "istedigim-dosya-adi.XML",
+            1,
+            CancellationToken.None);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(0, xlsxParser.CallCount);
+        Assert.Equal(1, xmlParser.CallCount);
+    }
+
+    private sealed class StubParser(
+        ProducerPriceIndexFileParseResult result,
+        string supportedExtension = ".xlsx")
         : IProducerPriceIndexFileParser
     {
         public int CallCount { get; private set; }
 
-        public bool CanParse(string fileExtension) => fileExtension == ".xlsx";
+        public bool CanParse(string fileExtension) =>
+            string.Equals(
+                fileExtension,
+                supportedExtension,
+                StringComparison.OrdinalIgnoreCase);
 
         public Task<ProducerPriceIndexFileParseResult> ParseAsync(
             Stream stream,

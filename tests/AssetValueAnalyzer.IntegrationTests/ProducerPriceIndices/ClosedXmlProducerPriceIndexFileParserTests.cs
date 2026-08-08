@@ -6,6 +6,29 @@ namespace AssetValueAnalyzer.IntegrationTests.ProducerPriceIndices;
 public sealed class ClosedXmlProducerPriceIndexFileParserTests
 {
     [Fact]
+    public async Task ParseAsync_WithPublishedSample_ReturnsExpectedCompanyValues()
+    {
+        var samplePath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../../",
+            "src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx"));
+        await using var stream = File.OpenRead(samplePath);
+        var parser = new ClosedXmlProducerPriceIndexFileParser();
+
+        var result = await parser.ParseAsync(stream, CancellationToken.None);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(212, result.Values.Count);
+        Assert.Equal(new DateOnly(2006, 1, 1), result.Values[0].Month);
+        Assert.Equal(123.513548041274m, result.Values[0].Value);
+        Assert.Contains(result.Values, value =>
+            value.Month == new DateOnly(2021, 12, 1) &&
+            value.Value == 1022.25m);
+        Assert.Equal(new DateOnly(2023, 8, 1), result.Values[^1].Month);
+        Assert.Equal(2602.54m, result.Values[^1].Value);
+    }
+
+    [Fact]
     public async Task ParseAsync_WithCompanyShapedMatrix_ReturnsAllAvailableMonths()
     {
         await using var stream = CreateWorkbook(worksheet =>
