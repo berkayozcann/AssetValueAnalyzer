@@ -32,7 +32,7 @@ public sealed class ReadProducerPriceIndicesService(
         {
             return Invalid(
                 "UnsupportedFormat",
-                "Endeks dosyası XLSX veya XML formatında olmalıdır.");
+                "Endeks dosyası XLSX formatında olmalıdır.");
         }
 
         var result = await parser.ParseAsync(stream, cancellationToken);

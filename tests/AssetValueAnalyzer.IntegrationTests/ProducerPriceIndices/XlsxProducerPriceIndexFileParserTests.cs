@@ -3,7 +3,7 @@ using ClosedXML.Excel;
 
 namespace AssetValueAnalyzer.IntegrationTests.ProducerPriceIndices;
 
-public sealed class ClosedXmlProducerPriceIndexFileParserTests
+public sealed class XlsxProducerPriceIndexFileParserTests
 {
     [Fact]
     public async Task ParseAsync_WithPublishedSample_ReturnsExpectedCompanyValues()
@@ -13,7 +13,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             "../../../../../",
             "src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx"));
         await using var stream = File.OpenRead(samplePath);
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -57,7 +57,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
                 2023,
                 [1900m, 2000m, 2100m, 2200m, 2300m, 2400m, 2500m, 2602.54m]);
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -82,7 +82,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
                 AddYear(worksheet, 10, 2021, [null, null, null, null, null, null, null, null, null, null, null, 1022.25m]);
             },
             "Firmanın İstediği Sekme Adı");
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -100,7 +100,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             AddYear(worksheet, 2, 2021, [null, null, null, null, null, null, null, null, null, null, null, 1022.25m]);
             AddYear(worksheet, 3, 2022, [1129.03m, null, 1300m]);
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -122,7 +122,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             AddHeaders(worksheet, 1);
             AddYear(worksheet, 2, 2021, [null, null, null, null, null, null, null, null, null, null, null, value]);
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -140,7 +140,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             worksheet.Cell(2, 1).Value = new DateTime(2021, 12, 1);
             worksheet.Cell(2, 2).Value = 1_000_000m;
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -159,7 +159,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             worksheet.Cell(4, 1).Value = "Dönem";
             AddYear(worksheet, 7, 2022, Enumerable.Repeat<decimal?>(100m, 12).ToArray());
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -176,7 +176,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             AddYear(worksheet, 7, 2022, Enumerable.Repeat<decimal?>(100m, 12).ToArray());
             AddYear(worksheet, 8, 2022, Enumerable.Repeat<decimal?>(200m, 12).ToArray());
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -193,7 +193,7 @@ public sealed class ClosedXmlProducerPriceIndexFileParserTests
             AddYear(worksheet, 7, 2022, Enumerable.Repeat<decimal?>(100m, 12).ToArray());
             worksheet.Cell(7, 14).Value = "Fazladan veri";
         });
-        var parser = new ClosedXmlProducerPriceIndexFileParser();
+        var parser = new XlsxProducerPriceIndexFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 

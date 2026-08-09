@@ -5,7 +5,7 @@ using ClosedXML.Excel;
 
 namespace AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 
-public sealed class ClosedXmlProducerPriceIndexFileParser
+public sealed class XlsxProducerPriceIndexFileParser
     : IProducerPriceIndexFileParser
 {
     private const string InvalidTemplateCode = "InvalidProducerPriceIndexTemplate";

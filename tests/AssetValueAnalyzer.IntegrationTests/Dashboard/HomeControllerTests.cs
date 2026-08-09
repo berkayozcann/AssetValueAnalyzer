@@ -35,7 +35,7 @@ public sealed class HomeControllerTests
                 new MonthlyAssetValueInput(new DateOnly(2022, 1, 1), 1_050_000m)
             ]);
         workspace.SaveProducerPriceIndices(
-            "endeks.xml",
+            "endeks.xlsx",
             [
                 new MonthlyProducerPriceIndexInput(new DateOnly(2021, 12, 1), 1_022.25m),
                 new MonthlyProducerPriceIndexInput(new DateOnly(2022, 1, 1), 1_129.03m)
@@ -52,7 +52,7 @@ public sealed class HomeControllerTests
         Assert.Equal(new DateOnly(2021, 12, 1), model.AssetValues?.FirstMonth);
         Assert.Equal(new DateOnly(2022, 1, 1), model.AssetValues?.LastMonth);
         Assert.Equal("Aralık 2021 – Ocak 2022", model.AssetValues?.MonthRange);
-        Assert.Equal("endeks.xml", model.ProducerPriceIndices?.FileName);
+        Assert.Equal("endeks.xlsx", model.ProducerPriceIndices?.FileName);
         Assert.Equal(2, model.ProducerPriceIndices?.ParsedCount);
         Assert.Equal("Aralık 2021 – Ocak 2022", model.ProducerPriceIndices?.MonthRange);
     }

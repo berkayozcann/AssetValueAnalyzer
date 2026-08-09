@@ -4,7 +4,7 @@ using ClosedXML.Excel;
 
 namespace AssetValueAnalyzer.IntegrationTests.Assets;
 
-public sealed class ClosedXmlAssetFileParserTests
+public sealed class XlsxAssetFileParserTests
 {
     [Fact]
     public async Task ParseAsync_WithDownloadableSample_ReturnsExpectedMonthlyValues()
@@ -14,7 +14,7 @@ public sealed class ClosedXmlAssetFileParserTests
             "../../../../..",
             "src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx"));
         await using var stream = File.OpenRead(samplePath);
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -32,7 +32,7 @@ public sealed class ClosedXmlAssetFileParserTests
         await using var stream = CreateWorkbook(
             (new DateTime(2021, 12, 1), 1_280_000m),
             (new DateTime(2022, 1, 1), 1_320_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -56,7 +56,7 @@ public sealed class ClosedXmlAssetFileParserTests
     {
         await using var stream = CreateWorkbook(
             (new DateTime(2022, 5, 27), 1_500_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -72,7 +72,7 @@ public sealed class ClosedXmlAssetFileParserTests
         await using var stream = CreateWorkbook(
             (new DateTime(2022, 1, 1), 1_320_000m),
             (new DateTime(2022, 1, 20), 1_340_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -89,7 +89,7 @@ public sealed class ClosedXmlAssetFileParserTests
             "Şirket Verileri 2023",
             includeHeaders: true,
             (new DateTime(2021, 12, 1), 1_280_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -107,7 +107,7 @@ public sealed class ClosedXmlAssetFileParserTests
             includeHeaders: false,
             (new DateTime(2021, 12, 1), 1_280_000m),
             (new DateTime(2022, 1, 1), 1_320_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -129,7 +129,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -153,7 +153,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -183,7 +183,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -210,7 +210,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -226,7 +226,7 @@ public sealed class ClosedXmlAssetFileParserTests
         await using var stream = CreateWorkbook(
             (new DateTime(2021, 11, 1), 1_200_000m),
             (new DateTime(2021, 12, 1), 1_280_000m));
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -256,7 +256,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -283,7 +283,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -313,7 +313,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -341,7 +341,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -372,7 +372,7 @@ public sealed class ClosedXmlAssetFileParserTests
         }
 
         stream.Position = 0;
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
@@ -384,7 +384,7 @@ public sealed class ClosedXmlAssetFileParserTests
     public async Task ParseAsync_WithNonXlsxContent_ReturnsGenericTemplateError()
     {
         await using var stream = new MemoryStream("not-an-xlsx"u8.ToArray());
-        var parser = new ClosedXmlAssetFileParser();
+        var parser = new XlsxAssetFileParser();
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 

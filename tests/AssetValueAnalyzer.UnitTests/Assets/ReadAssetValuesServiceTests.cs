@@ -96,45 +96,23 @@ public sealed class ReadAssetValuesServiceTests
         Assert.Equal(0, parser.CallCount);
     }
 
-    [Fact]
-    public async Task ReadAsync_WithUnsupportedExtension_DoesNotCallParser()
+    [Theory]
+    [InlineData("varlik.csv")]
+    [InlineData("varlik.xml")]
+    public async Task ReadAsync_WithUnsupportedExtension_DoesNotCallParser(string fileName)
     {
         var parser = new StubAssetFileParser(new AssetFileParseResult([], []));
         var service = new ReadAssetValuesService([parser]);
 
         var result = await service.ReadAsync(
             new MemoryStream([1]),
-            "varlik.csv",
+            fileName,
             1,
             CancellationToken.None);
 
         Assert.False(result.IsValid);
         Assert.Equal("UnsupportedFormat", Assert.Single(result.Errors).Code);
         Assert.Equal(0, parser.CallCount);
-    }
-
-    [Fact]
-    public async Task ReadAsync_WithXmlExtension_SelectsXmlParser()
-    {
-        var xlsxParser = new StubAssetFileParser(
-            new AssetFileParseResult([], []),
-            ".xlsx");
-        var xmlParser = new StubAssetFileParser(
-            new AssetFileParseResult(
-                [new MonthlyAssetValueInput(new DateOnly(2022, 5, 1), 1_500_000m)],
-                []),
-            ".xml");
-        var service = new ReadAssetValuesService([xlsxParser, xmlParser]);
-
-        var result = await service.ReadAsync(
-            new MemoryStream([1]),
-            "istedigim-dosya-adi.XML",
-            1,
-            CancellationToken.None);
-
-        Assert.True(result.IsValid);
-        Assert.Equal(0, xlsxParser.CallCount);
-        Assert.Equal(1, xmlParser.CallCount);
     }
 
     private sealed class StubAssetFileParser(

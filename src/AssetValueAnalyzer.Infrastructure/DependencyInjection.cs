@@ -66,11 +66,9 @@ public static class DependencyInjection
         services.AddScoped<IExchangeRateStore, EfExchangeRateStore>();
         services.AddScoped<ExchangeRateSynchronizationService>();
         services.AddScoped<InitializeExchangeRatesService>();
-        services.AddScoped<IAssetFileParser, ClosedXmlAssetFileParser>();
-        services.AddScoped<IAssetFileParser, XmlAssetFileParser>();
+        services.AddScoped<IAssetFileParser, XlsxAssetFileParser>();
         services.AddScoped<ReadAssetValuesService>();
-        services.AddScoped<IProducerPriceIndexFileParser, ClosedXmlProducerPriceIndexFileParser>();
-        services.AddScoped<IProducerPriceIndexFileParser, XmlProducerPriceIndexFileParser>();
+        services.AddScoped<IProducerPriceIndexFileParser, XlsxProducerPriceIndexFileParser>();
         services.AddScoped<ReadProducerPriceIndicesService>();
         services.AddSingleton<FinancialImpactCalculator>();
         services.AddSingleton<FinancialImpactReportRangeValidator>();

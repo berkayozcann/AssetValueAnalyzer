@@ -2,7 +2,7 @@
 
 Asset Value Analyzer; aylık Varlık ve Yİ-ÜFE verilerini, Finmaks'tan alınarak
 MSSQL'de tutulan USD/TRY kurlarıyla birleştiren ASP.NET Core MVC uygulamasıdır.
-Kullanıcı XLSX veya XML dosyalarını yükler, rapor aralığını seçer ve nominal,
+Kullanıcı sabit şirket şablonundaki XLSX dosyalarını yükler, rapor aralığını seçer ve nominal,
 dolarizasyon ve enflasyon etkilerini 14 kolonlu aylık tabloda görüntüler.
 
 ## Güncel durum
@@ -12,7 +12,7 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - Finmaks için typed `HttpClient`, doğrulanan options ve `CashChangeRate` mapping'i.
 - EF Core Code First, MSSQL migration'ı ve idempotent kur insert/update akışı.
 - Uygulama başlangıcında Aralık 2021'den bugüne backfill veya eksik aralık tamamlama.
-- Varlık ve Endeks verileri için XLSX ve canonical XML parser'ları.
+- Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
 - Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
 - Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
 - Tarih aralığı ve eksik ay doğrulaması.
@@ -36,7 +36,6 @@ Henüz tamamlanmayan ana işler:
 - EF Core 10 Code First + MSSQL
 - Typed `HttpClient` ile Finmaks ExchangeRates entegrasyonu
 - ClosedXML ile XLSX okuma
-- Built-in güvenli XML okuma (`DTD` yasak, external resolver kapalı)
 - Tailwind CSS 4 local CLI build
 - Vanilla JavaScript
 - xUnit, SQLite tabanlı persistence/controller integration testleri
@@ -67,7 +66,7 @@ Domain <- Application <- Web / Api
 
 - `Domain`: Kur entity'si ve framework'ten bağımsız temel kurallar.
 - `Application`: Import sözleşmeleri, kur senkronizasyonu, rapor doğrulama ve hesaplama.
-- `Infrastructure`: EF Core/MSSQL, Finmaks client ve XLSX/XML parser implementasyonları.
+- `Infrastructure`: EF Core/MSSQL, Finmaks client ve XLSX parser implementasyonları.
 - `Web`: MVC controller'ları, Razor Views, session çalışma alanı ve tarayıcı kodu.
 - `Api`: Ayrı API host iskeleti; güncel kur endpointleri henüz eklenmedi.
 
@@ -95,7 +94,7 @@ eder. Periyodik kontrol henüz eklenmedi; bunun için Hangfire planlanıyor.
 ```text
 POST Varlık/Endeks dosyası
 → 5 MB sınırı ve desteklenen uzantı kontrolü
-→ XLSX veya XML parser
+→ sabit şirket şablonuna uygun XLSX parser
 → ortak aylık normalize model ve validation
 → geçerliyse kullanıcının session'ına kaydet
 → geçersizse yalnız ilgili dosyanın durumunu temizle ve 422 döndür
@@ -206,30 +205,19 @@ pnpm run css:watch
 
 - `GET /`: Kur kartı, Varlık/Endeks yükleme kartları ve rapor tarih seçimi.
 - `GET /reports`: Boş, taslak veya tamamlanmış rapor çalışma alanı.
-- `POST /imports/assets/validate`: Varlık XLSX/XML doğrulaması.
-- `POST /imports/indices/validate`: Endeks XLSX/XML doğrulaması.
+- `POST /imports/assets/validate`: Varlık XLSX doğrulaması.
+- `POST /imports/indices/validate`: Endeks XLSX doğrulaması.
 - `POST /reports/validate-range`: Tarih aralığı ve veri kapsaması doğrulaması.
 - `POST /reports/create`: Gerçek finansal rapor hesabı.
 
 Web arayüzünden indirilebilen örnek veri dosyaları:
 
 - `src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx`
-- `src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xml`
 - `src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx`
-- `src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xml`
 
-### Canonical XML sözleşmesi
-
-Şirket henüz XML/XSD örneği sağlamadığı için mevcut XML formatı uygulamanın
-sürümlenmiş canonical sözleşmesidir:
-
-- Varlık kökü: `<AssetValues version="1.0">`
-- Varlık kaydı: `<AssetValue><Month>yyyy-MM</Month><Amount>...</Amount></AssetValue>`
-- Endeks kökü: `<ProducerPriceIndices version="1.0">`
-- Endeks kaydı: `<ProducerPriceIndex><Month>yyyy-MM</Month><IndexValue>...</IndexValue></ProducerPriceIndex>`
-
-Şirketin gerçek XML örneği geldiğinde yalnız XML adapter'larının bu ortak
-normalize modele uyarlanması hedeflenir; hesaplama ve MVC akışı değişmemelidir.
+Şirketin 9 Ağustos 2026 tarihli yazılı açıklamasına göre şartnamedeki XML ifadesi
+hatalıdır. Kullanıcı yalnızca ekteki örneklerle aynı sabit format ve satır/sütun
+yapısındaki XLSX dosyalarını yükleyecektir.
 
 ## Finansal hesap kuralları
 
@@ -256,11 +244,11 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `41/41`
-- Integration test: `83/83`
-- Toplam: `124/124`
+- Integration test: `55/55`
+- Toplam: `96/96`
 - Build: `0` hata, `0` uyarı
 
-Testler; import metadata/şablon/duplicate kurallarını, XXE korumasını, Finmaks
+Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
 mapping'ini, EF upsert davranışını, session/controller akışını, son iş günü kur
 seçimini ve 14 kolonlu finansal hesabı kapsar. Mevcut integration testleri SQLite
 ve controller/servis seviyesindedir; gerçek HTTP pipeline için
@@ -273,12 +261,11 @@ ve controller/servis seviyesindedir; gerçek HTTP pipeline için
 - Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
 - Çoklu instance deployment için distributed session store henüz yoktur.
 - Hangfire, SignalR ve ayrı kur API endpointleri henüz tamamlanmamıştır.
-- Şirketin gerçek XML formatı gelene kadar canonical XML sözleşmesi geçicidir.
+- Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.
 
 ## Güvenlik
 
 - API key, gerçek connection string ve gerçek/hassas finansal veriler source control'e eklenmez.
 - Finmaks `HttpClient` loglayıcıları query string içindeki API key'in loglanmaması
   için kaldırılmıştır.
-- XML parser'ları DTD işlemeyi yasaklar ve external entity resolution'ı kapatır.
-- Dosyalar en fazla 5 MB olabilir; yalnız XLSX ve XML kabul edilir.
+- Dosyalar en fazla 5 MB olabilir; yalnız XLSX kabul edilir ve ZIP/içerik imzası doğrulanır.

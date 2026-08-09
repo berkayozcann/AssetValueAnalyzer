@@ -1,4 +1,3 @@
-using System.Text;
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
@@ -14,30 +13,6 @@ namespace AssetValueAnalyzer.IntegrationTests.ProducerPriceIndices;
 
 public sealed class ProducerPriceIndexUploadControllerTests
 {
-    [Fact]
-    public async Task UploadProducerPriceIndices_WithValidXml_ReturnsValidationSummary()
-    {
-        await using var stream = new MemoryStream(
-            Encoding.UTF8.GetBytes(
-                """
-                <ProducerPriceIndices version="1.0">
-                  <ProducerPriceIndex><Month>2006-01</Month><IndexValue>122.38</IndexValue></ProducerPriceIndex>
-                  <ProducerPriceIndex><Month>2006-02</Month><IndexValue>123.84</IndexValue></ProducerPriceIndex>
-                </ProducerPriceIndices>
-                """));
-        var controller = CreateController();
-        var file = new FormFile(stream, 0, stream.Length, "file", "serbest-ad.xml");
-
-        var result = await controller.UploadProducerPriceIndices(file, CancellationToken.None);
-
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var response = Assert.IsType<ProducerPriceIndexFileValidationResult>(ok.Value);
-        Assert.True(response.IsValid);
-        Assert.Equal(2, response.ParsedCount);
-        Assert.Equal(new DateOnly(2006, 1, 1), response.FirstMonth);
-        Assert.Equal(new DateOnly(2006, 2, 1), response.LastMonth);
-    }
-
     [Fact]
     public async Task UploadProducerPriceIndices_WithValidXlsx_ReturnsValidationSummary()
     {
@@ -88,9 +63,9 @@ public sealed class ProducerPriceIndexUploadControllerTests
     private static ImportsController CreateController(
         IReportWorkspaceSession? workspace = null) =>
         new(
-            new ReadAssetValuesService([new ClosedXmlAssetFileParser()]),
+            new ReadAssetValuesService([new XlsxAssetFileParser()]),
             new ReadProducerPriceIndicesService(
-                [new ClosedXmlProducerPriceIndexFileParser(), new XmlProducerPriceIndexFileParser()]),
+                [new XlsxProducerPriceIndexFileParser()]),
             workspace ?? new TestReportWorkspaceSession());
 
     private static MemoryStream CreateIndexWorkbook()

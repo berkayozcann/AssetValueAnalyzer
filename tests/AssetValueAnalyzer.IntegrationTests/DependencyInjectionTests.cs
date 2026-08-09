@@ -46,19 +46,17 @@ public sealed class DependencyInjectionTests
         var assetParsers = scope.ServiceProvider
             .GetServices<IAssetFileParser>()
             .ToArray();
-        Assert.Contains(assetParsers, parser => parser is ClosedXmlAssetFileParser);
-        Assert.Contains(assetParsers, parser => parser is XmlAssetFileParser);
+        Assert.Collection(
+            assetParsers,
+            parser => Assert.IsType<XlsxAssetFileParser>(parser));
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadAssetValuesService>());
         var producerPriceIndexParsers = scope.ServiceProvider
             .GetServices<IProducerPriceIndexFileParser>()
             .ToArray();
-        Assert.Contains(
+        Assert.Collection(
             producerPriceIndexParsers,
-            parser => parser is ClosedXmlProducerPriceIndexFileParser);
-        Assert.Contains(
-            producerPriceIndexParsers,
-            parser => parser is XmlProducerPriceIndexFileParser);
+            parser => Assert.IsType<XlsxProducerPriceIndexFileParser>(parser));
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ReadProducerPriceIndicesService>());
         Assert.NotNull(

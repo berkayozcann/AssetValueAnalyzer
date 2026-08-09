@@ -115,9 +115,6 @@
                                     <a href="~/samples/asset-values.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
                                     </a>
-                                    <a href="~/samples/asset-values.xml" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
-                                        <span aria-hidden="true">↓</span> Örnek XML
-                                    </a>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-5">
@@ -125,7 +122,7 @@
                                 {
                                     <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
                                         Dosya Seç
-                                        <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="assetFile" />
+                                        <input class="sr-only" type="file" accept=".xlsx" data-file-input="assetFile" />
                                     </label>
                                     <button type="button"
                                             class="inline-flex items-center gap-2 rounded-lg border border-negative-400/35 bg-negative-400/[0.07] px-4 py-3 text-sm font-medium text-negative-400 transition hover:border-negative-400/60 hover:bg-negative-400/[0.12] @(assetFile is null ? "hidden" : string.Empty)"
@@ -141,7 +138,7 @@
                                 {
                                     <span class="rounded-lg border border-line-700 px-4 py-2 text-sm text-slate-400">Raporda kullanıldı</span>
                                 }
-                                <span class="text-sm text-slate-400">XLSX veya XML</span>
+                                <span class="text-sm text-slate-400">XLSX</span>
                             </div>
                         </div>
                     </article>
@@ -159,9 +156,6 @@
                                     <a href="~/samples/producer-price-indices.xlsx" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
                                         <span aria-hidden="true">↓</span> Örnek XLSX
                                     </a>
-                                    <a href="~/samples/producer-price-indices.xml" download class="inline-flex items-center gap-2 text-sm text-brand-400 hover:text-accent-300">
-                                        <span aria-hidden="true">↓</span> Örnek XML
-                                    </a>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-5">
@@ -169,7 +163,7 @@
                                 {
                                     <label class="secondary-button cursor-pointer rounded-lg px-7 py-3 text-center font-medium text-accent-300 hover:text-accent-300">
                                         Dosya Seç
-                                        <input class="sr-only" type="file" accept=".xlsx,.xml" data-file-input="indexFile" />
+                                        <input class="sr-only" type="file" accept=".xlsx" data-file-input="indexFile" />
                                     </label>
                                     <button type="button"
                                             class="inline-flex items-center gap-2 rounded-lg border border-negative-400/35 bg-negative-400/[0.07] px-4 py-3 text-sm font-medium text-negative-400 transition hover:border-negative-400/60 hover:bg-negative-400/[0.12] @(indexFile is null ? "hidden" : string.Empty)"
@@ -185,7 +179,7 @@
                                 {
                                     <span class="rounded-lg border border-line-700 px-4 py-2 text-sm text-slate-400">Raporda kullanıldı</span>
                                 }
-                                <span class="text-sm text-slate-400">XLSX veya XML</span>
+                                <span class="text-sm text-slate-400">XLSX</span>
                             </div>
                         </div>
                     </article>

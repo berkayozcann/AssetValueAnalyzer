@@ -28,6 +28,7 @@ public sealed class ReadProducerPriceIndicesServiceTests
     [Theory]
     [InlineData("", 0, "EmptyFile")]
     [InlineData("endeks.csv", 1, "UnsupportedFormat")]
+    [InlineData("endeks.xml", 1, "UnsupportedFormat")]
     public async Task ReadAsync_WithInvalidFileMetadata_DoesNotCallParser(
         string fileName,
         long fileSize,
@@ -62,30 +63,6 @@ public sealed class ReadProducerPriceIndicesServiceTests
         Assert.False(result.IsValid);
         Assert.Equal("FileTooLarge", Assert.Single(result.Errors).Code);
         Assert.Equal(0, parser.CallCount);
-    }
-
-    [Fact]
-    public async Task ReadAsync_WithXmlExtension_SelectsXmlParser()
-    {
-        var xlsxParser = new StubParser(
-            new ProducerPriceIndexFileParseResult([], []),
-            ".xlsx");
-        var xmlParser = new StubParser(
-            new ProducerPriceIndexFileParseResult(
-                [new MonthlyProducerPriceIndexInput(new DateOnly(2006, 1, 1), 122.38m)],
-                []),
-            ".xml");
-        var service = new ReadProducerPriceIndicesService([xlsxParser, xmlParser]);
-
-        var result = await service.ReadAsync(
-            new MemoryStream([1]),
-            "istedigim-dosya-adi.XML",
-            1,
-            CancellationToken.None);
-
-        Assert.True(result.IsValid);
-        Assert.Equal(0, xlsxParser.CallCount);
-        Assert.Equal(1, xmlParser.CallCount);
     }
 
     private sealed class StubParser(

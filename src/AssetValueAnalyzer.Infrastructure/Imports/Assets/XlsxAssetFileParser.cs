@@ -3,7 +3,7 @@ using ClosedXML.Excel;
 
 namespace AssetValueAnalyzer.Infrastructure.Imports.Assets;
 
-public sealed class ClosedXmlAssetFileParser : IAssetFileParser
+public sealed class XlsxAssetFileParser : IAssetFileParser
 {
     private const string InvalidTemplateCode = "InvalidAssetTemplate";
     private const string InvalidTemplateMessage =
