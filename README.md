@@ -14,6 +14,8 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - Uygulama başlangıcında Aralık 2021'den bugüne backfill veya eksik aralık tamamlama.
 - Hangfire + MSSQL storage ile uygulama açıkken varsayılan 3 dakikada bir bugünün
   kurlarını idempotent biçimde yenileme.
+- Başarılı Hangfire kontrolünden sonra SignalR bildirimi ve kur kartının sayfa
+  yenilenmeden kontrollü HTTP refetch ile güncellenmesi.
 - Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
 - Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
 - Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
@@ -28,7 +30,6 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 Henüz tamamlanmayan ana işler:
 
 - Ayrı API projesinde güncel kur controller'ı ve response DTO sözleşmesi.
-- SignalR ile son kontrol/kur değişikliği bilgisinin refresh olmadan güncellenmesi.
 - Temiz MSSQL kurulumu, Docker/çalıştırma yolu, CI ve son teslim kontrolleri.
 
 ## Kullanılan teknolojiler
@@ -38,6 +39,7 @@ Henüz tamamlanmayan ana işler:
 - EF Core 10 Code First + MSSQL
 - Typed `HttpClient` ile Finmaks ExchangeRates entegrasyonu
 - Hangfire 1.8 + MSSQL job storage
+- ASP.NET Core SignalR + yerel `@microsoft/signalr` JavaScript client
 - ClosedXML ile XLSX okuma
 - Tailwind CSS 4 local CLI build
 - Vanilla JavaScript
@@ -101,6 +103,9 @@ Hangfire recurring scheduler her 3 dakikada bir job enqueue eder
 → tarih parametresi verilmeden yalnız bugünün Finmaks kurları istenir
 → aynı kur değerleri duplicate üretmez; RetrievedAtUtc son başarılı çekişe yenilenir
 → değişen kur alanları varsa aynı business key üzerinde update edilir
+→ başarılı işlem Application bildirim portunu çağırır
+→ Web implementasyonu bağlı tarayıcılara SignalR tamamlanma olayı gönderir
+→ tarayıcı `/exchange-rates/card` partial'ını yeniden okuyup yalnız kur kartını değiştirir
 ```
 
 Periyot `ExchangeRateRecurringJob:IntervalMinutes` ayarıyla değiştirilebilir;
@@ -189,7 +194,7 @@ Repository kökünde:
 ```bash
 cd src/AssetValueAnalyzer.Web
 pnpm install --frozen-lockfile
-pnpm run css:build
+pnpm run assets:build
 cd ../..
 
 dotnet restore AssetValueAnalyzer.sln
@@ -227,6 +232,8 @@ pnpm run css:watch
 ## Ekranlar ve HTTP işlemleri
 
 - `GET /`: Kur kartı, Varlık/Endeks yükleme kartları ve rapor tarih seçimi.
+- `GET /exchange-rates/card`: SignalR bildirimi sonrası yeniden okunan kur kartı partial'ı.
+- `/hubs/exchange-rates`: Yalnız senkronizasyon tamamlanma bildirimi taşıyan SignalR hub'ı.
 - `GET /reports`: Boş, taslak veya tamamlanmış rapor çalışma alanı.
 - `POST /imports/assets/validate`: Varlık XLSX doğrulaması.
 - `POST /imports/indices/validate`: Endeks XLSX doğrulaması.
@@ -267,19 +274,22 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `41/41`
-- Integration test: `63/63`
-- Toplam: `104/104`
+- Integration test: `66/66`
+- Toplam: `107/107`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
-mapping'ini, EF upsert davranışını, session/controller akışını, son iş günü kur
-seçimini ve 14 kolonlu finansal hesabı kapsar. Beş gerçek HTTP smoke testi;
+mapping'ini, EF upsert davranışını, session/controller akışını, SignalR notifier/hub
+wiring'ini, son iş günü kur seçimini ve 14 kolonlu finansal hesabı kapsar. Yedi
+gerçek HTTP smoke testi;
 ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
 başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
 Tam akış testi ayrıca iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
 tablosuna kadar gerçek MVC pipeline'ını çalıştırır. Hangfire testleri; 3 dakikalık
 cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih aralığı
-vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar.
+vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri
+Web hostunun gerçek notifier'ı kullandığını, hub negotiate route'unu ve refetch
+partial sözleşmesini doğrular.
 
 ## Bilinen kapsam sınırları
 
@@ -287,7 +297,7 @@ vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar.
 - Grafik, CSV/Excel export ve public deployment zorunlu kapsamda değildir.
 - Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
 - Çoklu instance deployment için distributed session store henüz yoktur.
-- SignalR ve ayrı kur API endpointleri henüz tamamlanmamıştır.
+- Ayrı kur API endpointleri henüz tamamlanmamıştır.
 - Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.
 
 ## Güvenlik

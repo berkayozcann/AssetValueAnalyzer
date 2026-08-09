@@ -18,8 +18,10 @@ public sealed class ExchangeRateSynchronizationJobTests
             store,
             new FixedTimeProvider(
                 new DateTimeOffset(2026, 8, 9, 16, 30, 0, TimeSpan.Zero)));
+        var notifier = new CapturingSynchronizationNotifier();
         var job = new ExchangeRateSynchronizationJob(
             synchronizationService,
+            notifier,
             NullLogger<ExchangeRateSynchronizationJob>.Instance);
 
         await job.ExecuteAsync(CancellationToken.None);
@@ -28,6 +30,7 @@ public sealed class ExchangeRateSynchronizationJobTests
         Assert.Null(client.StartDate);
         Assert.Null(client.EndDate);
         Assert.Equal(1, store.CallCount);
+        Assert.Equal(1, notifier.CallCount);
     }
 
     private sealed class CapturingFinmaksClient : IFinmaksExchangeRateClient
@@ -65,6 +68,19 @@ public sealed class ExchangeRateSynchronizationJobTests
         {
             CallCount++;
             return Task.FromResult(new ExchangeRateUpsertResult(0, 0, 0));
+        }
+    }
+
+    private sealed class CapturingSynchronizationNotifier
+        : IExchangeRateSynchronizationNotifier
+    {
+        public int CallCount { get; private set; }
+
+        public Task NotifyCompletedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.CompletedTask;
         }
     }
 

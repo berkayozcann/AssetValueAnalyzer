@@ -6,6 +6,7 @@ namespace AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 
 public sealed class ExchangeRateSynchronizationJob(
     ExchangeRateSynchronizationService synchronizationService,
+    IExchangeRateSynchronizationNotifier synchronizationNotifier,
     ILogger<ExchangeRateSynchronizationJob> logger)
 {
     [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
@@ -17,6 +18,8 @@ public sealed class ExchangeRateSynchronizationJob(
         var result = await synchronizationService.SynchronizeAsync(
             new SyncExchangeRatesRequest(),
             cancellationToken);
+
+        await synchronizationNotifier.NotifyCompletedAsync(cancellationToken);
 
         logger.LogInformation(
             "Recurring exchange-rate synchronization completed. Received: {ReceivedCount}; " +

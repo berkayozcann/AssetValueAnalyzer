@@ -1,4 +1,6 @@
+using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
 using AssetValueAnalyzer.Web.Features.Reports;
 using AssetValueAnalyzer.Web.Hosting;
 
@@ -6,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSignalR();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
@@ -17,6 +20,9 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromHours(2);
 });
 builder.Services.AddScoped<IReportWorkspaceSession, ReportWorkspaceSession>();
+builder.Services.AddSingleton<
+    IExchangeRateSynchronizationNotifier,
+    SignalRExchangeRateSynchronizationNotifier>();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<ExchangeRateInitializationHostedService>();
 
@@ -37,6 +43,8 @@ app.UseSession();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHub<ExchangeRateHub>("/hubs/exchange-rates");
 
 app.MapControllerRoute(
     name: "default",

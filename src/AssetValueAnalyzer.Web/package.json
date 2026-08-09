@@ -2,10 +2,13 @@
   "name": "asset-value-analyzer-web",
   "private": true,
   "scripts": {
+    "assets:build": "pnpm run css:build && pnpm run js:vendor",
     "css:build": "tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --minify",
-    "css:watch": "tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --watch"
+    "css:watch": "tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --watch",
+    "js:vendor": "cp ./node_modules/@microsoft/signalr/dist/browser/signalr.min.js ./wwwroot/lib/signalr/signalr.min.js"
   },
   "devDependencies": {
+    "@microsoft/signalr": "10.0.11",
     "@tailwindcss/cli": "^4.3.0",
     "tailwindcss": "^4.3.0"
   },

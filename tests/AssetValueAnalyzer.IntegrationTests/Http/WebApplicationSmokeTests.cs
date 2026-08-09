@@ -1,10 +1,14 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.IntegrationTests.Support;
+using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AssetValueAnalyzer.IntegrationTests.Http;
 
@@ -12,6 +16,17 @@ public sealed partial class WebApplicationSmokeTests(
     AssetValueAnalyzerWebApplicationFactory factory)
     : IClassFixture<AssetValueAnalyzerWebApplicationFactory>
 {
+    [Fact]
+    public void WebHost_UsesSignalRNotifierInsteadOfInfrastructureFallback()
+    {
+        using var scope = factory.Services.CreateScope();
+
+        var notifier = scope.ServiceProvider
+            .GetRequiredService<IExchangeRateSynchronizationNotifier>();
+
+        Assert.IsType<SignalRExchangeRateSynchronizationNotifier>(notifier);
+    }
+
     [Fact]
     public async Task HomePage_UsesRealPipelineAndReturnsAntiforgeryToken()
     {
@@ -23,6 +38,38 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("Yeni Rapor Oluştur", html);
         Assert.NotEmpty(ReadAntiforgeryToken(html));
+        Assert.Contains("/lib/signalr/signalr.min.js", html);
+    }
+
+    [Fact]
+    public async Task ExchangeRateCard_ReturnsRefreshablePartialWithoutPageLayout()
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync("/exchange-rates/card");
+        var html = await response.Content.ReadAsStringAsync();
+        var decodedHtml = WebUtility.HtmlDecode(html);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("data-exchange-rate-card", html);
+        Assert.Contains("Henüz kur verisi bulunmuyor", decodedHtml);
+        Assert.DoesNotContain("<!DOCTYPE html>", html);
+    }
+
+    [Fact]
+    public async Task ExchangeRateHub_NegotiateEndpoint_IsMapped()
+    {
+        using var client = CreateClient();
+
+        var response = await client.PostAsync(
+            "/hubs/exchange-rates/negotiate?negotiateVersion=1",
+            content: null);
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(json.RootElement.TryGetProperty("connectionId", out var connectionId));
+        Assert.False(string.IsNullOrWhiteSpace(connectionId.GetString()));
+        Assert.True(json.RootElement.TryGetProperty("availableTransports", out _));
     }
 
     [Fact]

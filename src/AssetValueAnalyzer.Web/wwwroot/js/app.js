@@ -1,4 +1,79 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const connectExchangeRateUpdates = () => {
+    if (!document.querySelector("[data-exchange-rate-card]") || !window.signalR) {
+      return;
+    }
+
+    let isPageUnloading = false;
+    let retryTimeoutId = null;
+
+    const refreshExchangeRateCard = async () => {
+      const currentCard = document.querySelector("[data-exchange-rate-card]");
+
+      if (!currentCard) {
+        return;
+      }
+
+      try {
+        const response = await fetch(currentCard.dataset.refreshUrl, {
+          headers: { Accept: "text/html" },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Kur kartı yenilenemedi (${response.status}).`);
+        }
+
+        const template = document.createElement("template");
+        template.innerHTML = (await response.text()).trim();
+        const updatedCard = template.content.firstElementChild;
+
+        if (!updatedCard?.matches("[data-exchange-rate-card]")) {
+          throw new Error("Kur kartı cevabı beklenen HTML yapısında değil.");
+        }
+
+        currentCard.replaceWith(updatedCard);
+      } catch (error) {
+        console.warn("Kur kartı canlı olarak yenilenemedi.", error);
+      }
+    };
+
+    const connection = new window.signalR.HubConnectionBuilder()
+      .withUrl("/hubs/exchange-rates")
+      .withAutomaticReconnect()
+      .configureLogging(window.signalR.LogLevel.Warning)
+      .build();
+
+    connection.on("exchangeRatesSynchronized", () => {
+      void refreshExchangeRateCard();
+    });
+
+    const startConnection = async () => {
+      try {
+        await connection.start();
+      } catch (error) {
+        if (!isPageUnloading) {
+          console.warn("Kur güncelleme bağlantısı kurulamadı; tekrar denenecek.", error);
+          retryTimeoutId = window.setTimeout(startConnection, 5000);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", () => {
+      isPageUnloading = true;
+
+      if (retryTimeoutId !== null) {
+        window.clearTimeout(retryTimeoutId);
+      }
+
+      void connection.stop();
+    }, { once: true });
+
+    void startConnection();
+  };
+
+  connectExchangeRateUpdates();
+
   const wizardStorageKeys = {
     step: "AssetValueAnalyzer.ReportWizard.Step",
     startMonth: "AssetValueAnalyzer.ReportWizard.StartMonth",

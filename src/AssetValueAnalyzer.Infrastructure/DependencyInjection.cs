@@ -16,6 +16,7 @@ using Hangfire.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace AssetValueAnalyzer.Infrastructure;
@@ -78,6 +79,9 @@ public static class DependencyInjection
 
         services.AddScoped<IExchangeRateStore, EfExchangeRateStore>();
         services.AddScoped<ExchangeRateSynchronizationService>();
+        services.TryAddSingleton<
+            IExchangeRateSynchronizationNotifier,
+            NullExchangeRateSynchronizationNotifier>();
         services.AddScoped<InitializeExchangeRatesService>();
         services.AddScoped<IAssetFileParser, XlsxAssetFileParser>();
         services.AddScoped<ReadAssetValuesService>();

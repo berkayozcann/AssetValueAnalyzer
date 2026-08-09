@@ -45,6 +45,9 @@ public sealed class DependencyInjectionTests
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ExchangeRateSynchronizationService>());
         Assert.NotNull(
+            scope.ServiceProvider.GetRequiredService<
+                IExchangeRateSynchronizationNotifier>());
+        Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<InitializeExchangeRatesService>());
         var assetParsers = scope.ServiceProvider
             .GetServices<IAssetFileParser>()
