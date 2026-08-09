@@ -116,6 +116,29 @@ public sealed class FinancialImpactCalculatorTests
     }
 
     [Fact]
+    public void Calculate_WithoutPreviousCalendarMonth_LeavesMonthlyChangesEmpty()
+    {
+        MonthlyFinancialInput[] input =
+        [
+            new(new DateOnly(2023, 1, 1), 1_000_000m, 10m, 100m),
+            new(new DateOnly(2023, 3, 1), 2_000_000m, 20m, 125m)
+        ];
+
+        var result = _calculator.Calculate(input);
+
+        Assert.True(result.IsValid);
+        var report = Assert.IsType<FinancialImpactReport>(result.Report);
+        var marchRow = report.Rows[1];
+
+        Assert.Equal(2_000_000m, marchRow.AssetAmount);
+        Assert.Null(marchRow.MonthlyAssetChangeRate);
+        Assert.Equal(2_000_000m, marchRow.DollarizedAmount);
+        Assert.Null(marchRow.MonthlyDollarizedChangeRate);
+        Assert.Equal(2_000_000m, marchRow.InflationAdjustedAmount);
+        Assert.Null(marchRow.MonthlyInflationAdjustedChangeRate);
+    }
+
+    [Fact]
     public void Calculate_WithZeroAssetAmount_LeavesUndefinedRatiosEmpty()
     {
         MonthlyFinancialInput[] input =

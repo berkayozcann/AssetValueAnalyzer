@@ -74,4 +74,63 @@ public sealed class ReportPageViewModelFactoryTests
         Assert.Equal(new DateOnly(2021, 11, 1), viewModel.AvailableStartMonth);
         Assert.Equal(new DateOnly(2022, 3, 1), viewModel.AvailableEndMonth);
     }
+
+    [Fact]
+    public void Create_FormatsMissingPreviousCalendarMonthChangesAsDash()
+    {
+        var report = new FinancialImpactReport(
+            new FinancialImpactReportSummary(
+                new DateOnly(2023, 3, 1),
+                2_000_000m,
+                0m,
+                0m,
+                0m),
+            [
+                new FinancialImpactReportRow(
+                    new DateOnly(2023, 1, 1),
+                    1_000_000m,
+                    0m,
+                    1m,
+                    10m,
+                    2_000_000m,
+                    0m,
+                    0m,
+                    -0.5m,
+                    100m,
+                    1_250_000m,
+                    0m,
+                    0.6m,
+                    -0.2m),
+                new FinancialImpactReportRow(
+                    new DateOnly(2023, 3, 1),
+                    2_000_000m,
+                    null,
+                    0m,
+                    20m,
+                    2_000_000m,
+                    null,
+                    0m,
+                    0m,
+                    125m,
+                    2_000_000m,
+                    null,
+                    0m,
+                    0m)
+            ]);
+
+        var viewModel = ReportPageViewModelFactory.Create(
+            report,
+            new ExchangeRateCardViewModel(
+                "47,5000",
+                "Değişmedi",
+                "Son senkronizasyon: 08.08.2026 12:00",
+                ExchangeRateTrend.Unchanged),
+            new DateOnly(2023, 1, 1),
+            new DateOnly(2023, 3, 1));
+
+        var marchRow = viewModel.Rows[1];
+        Assert.Equal("—", marchRow.MonthlyAssetIncreaseRate);
+        Assert.Equal("—", marchRow.MonthlyDollarizedIncreaseRate);
+        Assert.Equal("—", marchRow.MonthlyInflationAdjustedIncreaseRate);
+    }
 }

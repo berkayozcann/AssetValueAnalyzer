@@ -40,21 +40,21 @@ public sealed class FinancialImpactCalculator
             rows.Add(new FinancialImpactReportRow(
                 current.Input.Month,
                 current.Input.AssetAmount,
-                previous is null
-                    ? 0m
-                    : CalculateChangeRate(
-                        current.Input.AssetAmount,
-                        previous.Input.AssetAmount),
+                CalculateMonthlyChangeRate(
+                    current.Input.Month,
+                    current.Input.AssetAmount,
+                    previous?.Input.Month,
+                    previous?.Input.AssetAmount),
                 CalculateChangeRate(
                     reportPeriod.AssetAmount,
                     current.Input.AssetAmount),
                 current.Input.UsdRate,
                 current.DollarizedAmount,
-                previous is null
-                    ? 0m
-                    : CalculateChangeRate(
-                        current.DollarizedAmount,
-                        previous.DollarizedAmount),
+                CalculateMonthlyChangeRate(
+                    current.Input.Month,
+                    current.DollarizedAmount,
+                    previous?.Input.Month,
+                    previous?.DollarizedAmount),
                 CalculateChangeRate(
                     reportCalculatedPeriod.DollarizedAmount,
                     current.DollarizedAmount),
@@ -63,11 +63,11 @@ public sealed class FinancialImpactCalculator
                     current.DollarizedAmount),
                 current.Input.ProducerPriceIndex,
                 current.InflationAdjustedAmount,
-                previous is null
-                    ? 0m
-                    : CalculateChangeRate(
-                        current.InflationAdjustedAmount,
-                        previous.InflationAdjustedAmount),
+                CalculateMonthlyChangeRate(
+                    current.Input.Month,
+                    current.InflationAdjustedAmount,
+                    previous?.Input.Month,
+                    previous?.InflationAdjustedAmount),
                 CalculateChangeRate(
                     reportCalculatedPeriod.InflationAdjustedAmount,
                     current.InflationAdjustedAmount),
@@ -156,6 +156,22 @@ public sealed class FinancialImpactCalculator
         comparisonValue == 0m
             ? null
             : (currentValue - comparisonValue) / comparisonValue;
+
+    private static decimal? CalculateMonthlyChangeRate(
+        DateOnly currentMonth,
+        decimal currentValue,
+        DateOnly? previousMonth,
+        decimal? previousValue)
+    {
+        if (previousMonth is null || previousValue is null)
+        {
+            return 0m;
+        }
+
+        return previousMonth == currentMonth.AddMonths(-1)
+            ? CalculateChangeRate(currentValue, previousValue.Value)
+            : null;
+    }
 
     private sealed record CalculatedPeriod(
         MonthlyFinancialInput Input,

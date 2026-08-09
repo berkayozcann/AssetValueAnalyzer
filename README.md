@@ -120,7 +120,8 @@ POST /reports/create
 ```
 
 Arada ay bulunmayan varlık dosyalarında yalnız mevcut varlık ayları rapora girer;
-"önceki ay" değişimi, rapordaki bir önceki mevcut satıra göre hesaplanır.
+gerçek önceki takvim ayı yoksa üç "önceki aya göre" değişim kolonu `—` gösterilir.
+Diğer nominal, dolarizasyon ve enflasyonizasyon değerleri hesaplanmaya devam eder.
 
 ## Gereksinimler
 
@@ -254,9 +255,9 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 
 Son doğrulanan durum:
 
-- Unit test: `40/40`
-- Integration test: `82/82`
-- Toplam: `122/122`
+- Unit test: `41/41`
+- Integration test: `83/83`
+- Toplam: `124/124`
 - Build: `0` hata, `0` uyarı
 
 Testler; import metadata/şablon/duplicate kurallarını, XXE korumasını, Finmaks
