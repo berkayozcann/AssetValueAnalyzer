@@ -20,13 +20,14 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - `decimal` kullanan nominal, dolarizasyon ve enflasyon hesapları.
 - KPI özeti ve şartnamedeki 14 kolonu gösteren gerçek Razor sonuç ekranı.
 - Kontrollü production fixture'ı ve şirket Excel'indeki referans kur fixture'ıyla formül testleri.
+- `WebApplicationFactory<Program>` ile gerçek host, routing, Razor, anti-forgery,
+  multipart model binding ve session cookie smoke testleri.
 
 Henüz tamamlanmayan ana işler:
 
 - Hangfire ile uygulama açıkken periyodik kur kontrolü.
 - Ayrı API projesinde güncel kur controller'ı ve response DTO sözleşmesi.
 - SignalR ile son kontrol/kur değişikliği bilgisinin refresh olmadan güncellenmesi.
-- Gerçek host üzerinde `WebApplicationFactory<Program>` smoke testleri.
 - Temiz MSSQL kurulumu, Docker/çalıştırma yolu, CI ve son teslim kontrolleri.
 
 ## Kullanılan teknolojiler
@@ -38,7 +39,7 @@ Henüz tamamlanmayan ana işler:
 - ClosedXML ile XLSX okuma
 - Tailwind CSS 4 local CLI build
 - Vanilla JavaScript
-- xUnit, SQLite tabanlı persistence/controller integration testleri
+- xUnit, SQLite tabanlı integration testleri ve `WebApplicationFactory` HTTP smoke testleri
 
 ## Solution yapısı
 
@@ -244,15 +245,17 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `41/41`
-- Integration test: `55/55`
-- Toplam: `96/96`
+- Integration test: `60/60`
+- Toplam: `101/101`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
 mapping'ini, EF upsert davranışını, session/controller akışını, son iş günü kur
-seçimini ve 14 kolonlu finansal hesabı kapsar. Mevcut integration testleri SQLite
-ve controller/servis seviyesindedir; gerçek HTTP pipeline için
-`WebApplicationFactory<Program>` smoke testleri kalan işlerdendir.
+seçimini ve 14 kolonlu finansal hesabı kapsar. Beş gerçek HTTP smoke testi;
+ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
+başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
+Tam akış testi ayrıca iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
+tablosuna kadar gerçek MVC pipeline'ını çalıştırır.
 
 ## Bilinen kapsam sınırları
 

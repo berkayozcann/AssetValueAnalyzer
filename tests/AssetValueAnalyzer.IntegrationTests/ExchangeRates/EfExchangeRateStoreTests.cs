@@ -104,7 +104,7 @@ public sealed class EfExchangeRateStoreTests
     }
 
     [Fact]
-    public async Task UpsertAsync_WithIdenticalRateValues_CountsTheRecordAsUnchanged()
+    public async Task UpsertAsync_WithIdenticalRateValues_RefreshesRetrievalMetadata()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(CancellationToken.None);
@@ -124,9 +124,12 @@ public sealed class EfExchangeRateStoreTests
             await setupContext.SaveChangesAsync(CancellationToken.None);
         }
 
+        var refreshedSourceUpdatedAt = new DateTime(2026, 8, 7, 10, 15, 0);
+        var refreshedRetrievedAtUtc =
+            new DateTimeOffset(2026, 8, 7, 10, 16, 0, TimeSpan.Zero);
         var identicalRateFromLaterRequest = CreateExchangeRate(
-            sourceUpdatedAt: new DateTime(2026, 8, 7, 10, 15, 0),
-            retrievedAtUtc: new DateTimeOffset(2026, 8, 7, 10, 16, 0, TimeSpan.Zero),
+            sourceUpdatedAt: refreshedSourceUpdatedAt,
+            retrievedAtUtc: refreshedRetrievedAtUtc,
             cashChangeRate: 46.55073m);
 
         await using (var updateContext = new AssetValueAnalyzerDbContext(dbContextOptions))
@@ -147,8 +150,9 @@ public sealed class EfExchangeRateStoreTests
             .AsNoTracking()
             .SingleAsync(CancellationToken.None);
 
-        Assert.Equal(originalRetrievedAtUtc, savedRate.RetrievedAtUtc);
-        Assert.Equal(new DateTime(2026, 8, 7, 6, 4, 36), savedRate.SourceUpdatedAt);
+        Assert.NotEqual(originalRetrievedAtUtc, savedRate.RetrievedAtUtc);
+        Assert.Equal(refreshedRetrievedAtUtc, savedRate.RetrievedAtUtc);
+        Assert.Equal(refreshedSourceUpdatedAt, savedRate.SourceUpdatedAt);
     }
 
     private static ExchangeRate CreateExchangeRate(

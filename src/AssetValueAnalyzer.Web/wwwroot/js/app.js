@@ -790,6 +790,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData();
     formData.append("file", file);
 
+    if (antiforgeryToken) {
+      formData.append("__RequestVerificationToken", antiforgeryToken);
+    }
+
     state.assetValidationState = "validating";
     setStatus(status, "Doğrulanıyor…", "neutral");
     setValidationMessage(validation, "Dosya yapısı ve aylık değerler kontrol ediliyor.");
@@ -849,6 +853,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const validation = row.querySelector("[data-file-validation]");
     const formData = new FormData();
     formData.append("file", file);
+
+    if (antiforgeryToken) {
+      formData.append("__RequestVerificationToken", antiforgeryToken);
+    }
 
     state.indexValidationState = "validating";
     setStatus(status, "Doğrulanıyor…", "neutral");

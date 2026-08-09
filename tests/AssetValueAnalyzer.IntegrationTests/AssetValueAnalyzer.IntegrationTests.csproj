@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
@@ -24,7 +25,9 @@
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Api\AssetValueAnalyzer.Api.csproj" />
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Application\AssetValueAnalyzer.Application.csproj" />
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Infrastructure\AssetValueAnalyzer.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\AssetValueAnalyzer.Web\AssetValueAnalyzer.Web.csproj" />
+    <ProjectReference Include="..\..\src\AssetValueAnalyzer.Web\AssetValueAnalyzer.Web.csproj">
+      <Aliases>global,WebApp</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

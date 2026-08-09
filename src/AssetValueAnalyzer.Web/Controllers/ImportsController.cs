@@ -15,6 +15,7 @@ public sealed class ImportsController(
         ReadAssetValuesService.MaxFileSize + (64 * 1024);
 
     [HttpPost("assets/validate")]
+    [ValidateAntiForgeryToken]
     [RequestSizeLimit(MultipartRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = MultipartRequestLimit)]
     public async Task<IActionResult> UploadAssets(
@@ -56,6 +57,7 @@ public sealed class ImportsController(
     }
 
     [HttpPost("indices/validate")]
+    [ValidateAntiForgeryToken]
     [RequestSizeLimit(MultipartRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = MultipartRequestLimit)]
     public async Task<IActionResult> UploadProducerPriceIndices(

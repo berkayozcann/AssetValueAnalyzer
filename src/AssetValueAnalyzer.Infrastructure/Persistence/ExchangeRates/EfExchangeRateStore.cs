@@ -61,6 +61,17 @@ public sealed class EfExchangeRateStore(
             {
                 if (existingRate.HasSameRateValues(incomingRate))
                 {
+                    existingRate.UpdateRates(
+                        incomingRate.SourceUpdatedAt,
+                        incomingRate.RetrievedAtUtc,
+                        incomingRate.ChangeRate,
+                        incomingRate.ExchangeRateValue,
+                        incomingRate.CashChangeRate,
+                        incomingRate.CashExchangeRate,
+                        incomingRate.CentralBankChangeRate,
+                        incomingRate.CentralBankExchangeRate,
+                        incomingRate.CrossRate);
+
                     unchangedCount++;
                     continue;
                 }
