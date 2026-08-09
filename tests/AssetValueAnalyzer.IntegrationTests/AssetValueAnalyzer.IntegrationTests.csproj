@@ -22,7 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AssetValueAnalyzer.Api\AssetValueAnalyzer.Api.csproj" />
+    <ProjectReference Include="..\..\src\AssetValueAnalyzer.Api\AssetValueAnalyzer.Api.csproj">
+      <Aliases>global,ApiApp</Aliases>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Application\AssetValueAnalyzer.Application.csproj" />
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Infrastructure\AssetValueAnalyzer.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\AssetValueAnalyzer.Web\AssetValueAnalyzer.Web.csproj">

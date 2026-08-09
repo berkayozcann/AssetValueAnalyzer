@@ -16,6 +16,8 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
   kurlarını idempotent biçimde yenileme.
 - Başarılı Hangfire kontrolünden sonra SignalR bildirimi ve kur kartının sayfa
   yenilenmeden kontrollü HTTP refetch ile güncellenmesi.
+- Ayrı ASP.NET Core Web API hostundan en güncel veya tarih/para koduyla filtrelenmiş
+  kurları entity'den ayrılmış DTO ve `ProblemDetails` sözleşmesiyle sunma.
 - Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
 - Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
 - Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
@@ -27,10 +29,8 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - `WebApplicationFactory<Program>` ile gerçek host, routing, Razor, anti-forgery,
   multipart model binding ve session cookie smoke testleri.
 
-Henüz tamamlanmayan ana işler:
-
-- Ayrı API projesinde güncel kur controller'ı ve response DTO sözleşmesi.
-- Temiz MSSQL kurulumu, Docker/çalıştırma yolu, CI ve son teslim kontrolleri.
+Henüz tamamlanmayan ana işler: temiz MSSQL kurulumu, Docker/çalıştırma yolu,
+CI ve son teslim kontrolleri.
 
 ## Kullanılan teknolojiler
 
@@ -73,7 +73,8 @@ Domain <- Application <- Web / Api
 - `Application`: Import sözleşmeleri, kur senkronizasyonu, rapor doğrulama ve hesaplama.
 - `Infrastructure`: EF Core/MSSQL, Finmaks client, XLSX parser ve Hangfire job wiring'i.
 - `Web`: MVC controller'ları, Razor Views, session çalışma alanı ve tarayıcı kodu.
-- `Api`: Ayrı API host iskeleti; güncel kur endpointleri henüz eklenmedi.
+- `Api`: Read-only güncel kur controller'ı, query validation, response DTO ve
+  `ProblemDetails` sözleşmesi.
 
 Generic repository, MediatR, CQRS ve AutoMapper kullanılmaz. İş kuralları
 controller veya Razor view içine taşınmaz.
@@ -146,6 +147,27 @@ Arada ay bulunmayan varlık dosyalarında yalnız mevcut varlık ayları rapora 
 gerçek önceki takvim ayı yoksa üç "önceki aya göre" değişim kolonu `—` gösterilir.
 Diğer nominal, dolarizasyon ve enflasyonizasyon değerleri hesaplanmaya devam eder.
 
+### 5. Ayrı kur API'si
+
+```text
+GET /api/exchange-rates/latest veya GET /api/exchange-rates
+→ query string tarih/para kodu/limit validation
+→ Application IExchangeRateReader portu
+→ EF Core AsNoTracking ve doğrudan read model projection
+→ latest isteğinde filtrelere uyan en son/istenen gün
+→ tarihçe isteğinde başlangıç ve bitiş dahil aralık sorgusu
+→ API response DTO mapping
+→ eşleşme yoksa 404 ProblemDetails, geçersiz query'de 400 ValidationProblemDetails
+```
+
+API entity `Id` değerini veya EF entity'sini dışarı vermez. Tarihçe endpointinde
+`startDate` ve `endDate` birlikte zorunludur; iki sınır da sorguya dahildir.
+`limit` varsayılan 100, izin verilen aralık 1–200'dür. Swagger/OpenAPI paketi
+şartname kapsamında gerekli olmadığı için eklenmemiş; endpoint sözleşmesi README
+ve integration testlerinde belgelenmiştir. Ayrı API hostu Finmaks'a doğrudan
+çıkmaz; yalnız MSSQL'de kalıcılaştırılmış kur verilerini okuduğu için Finmaks API
+key'ine veya Hangfire/import servislerine bağımlı değildir.
+
 ## Gereksinimler
 
 - .NET SDK 10
@@ -165,8 +187,10 @@ pnpm --version
 
 ## Secret ve veritabanı yapılandırması
 
-Web ve API projeleri aynı development `UserSecretsId` değerini kullanır. Gerçek
-Finmaks API key'i ve MSSQL parolası repository'ye yazılmaz.
+Web ve API projeleri aynı development `UserSecretsId` değerini kullanır. İki host
+da MSSQL connection string'ini kullanır; Finmaks API key'i yalnız kur
+senkronizasyonunu yapan Web hostu için gereklidir. Gerçek Finmaks API key'i ve
+MSSQL parolası repository'ye yazılmaz.
 
 Repository kökünde kendi MSSQL bilgilerinizi kullanarak:
 
@@ -222,6 +246,19 @@ dotnet run --project src/AssetValueAnalyzer.Web/AssetValueAnalyzer.Web.csproj
 
 Terminalde yazan HTTP/HTTPS adresini tarayıcıda açın.
 
+Ayrı API hostunu çalıştırmak için:
+
+```bash
+dotnet run --project src/AssetValueAnalyzer.Api/AssetValueAnalyzer.Api.csproj
+```
+
+API hostu yalnız `ConnectionStrings:AssetValueAnalyzer` yapılandırmasını ister;
+Finmaks API key'i olmadan veritabanındaki mevcut kur kayıtlarını sunabilir.
+Periyodik kur senkronizasyonunu Web hostundaki Hangfire yürütür; API aynı MSSQL
+veritabanındaki kayıtları salt okunur biçimde sunar. Bu nedenle kurların periyodik
+olarak yenilenmesi için tarayıcının değil, Web sunucu prosesinin çalışıyor olması
+gerekir.
+
 CSS üzerinde çalışırken ayrı terminalde:
 
 ```bash
@@ -239,6 +276,33 @@ pnpm run css:watch
 - `POST /imports/indices/validate`: Endeks XLSX doğrulaması.
 - `POST /reports/validate-range`: Tarih aralığı ve veri kapsaması doğrulaması.
 - `POST /reports/create`: Gerçek finansal rapor hesabı.
+- `GET /api/exchange-rates/latest`: Ayrı API hostundaki güncel kur listesi.
+- `GET /api/exchange-rates`: Ayrı API hostundaki tarih aralıklı kur listesi.
+
+Güncel/tek-gün endpointi query parametreleri:
+
+- `rateDate=YYYY-MM-DD`: Belirli kur günü; verilmezse filtrelere uyan en son gün.
+- `baseCurrencyCode`: Opsiyonel baz para kodu.
+- `foreignCurrencyCode`: Opsiyonel karşı para kodu.
+- `limit`: 1–200; varsayılan 100.
+
+Örnek USD/TRY çağrısı:
+
+```text
+GET /api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1
+```
+
+Tarihçe endpointi query parametreleri:
+
+- `startDate=YYYY-MM-DD`: Zorunlu başlangıç günü.
+- `endDate=YYYY-MM-DD`: Zorunlu bitiş günü.
+- `baseCurrencyCode`, `foreignCurrencyCode` ve `limit`: Opsiyonel filtreler.
+
+Örnek USD/TRY tarihçe çağrısı:
+
+```text
+GET /api/exchange-rates?startDate=2026-08-01&endDate=2026-08-09&baseCurrencyCode=1&foreignCurrencyCode=56&limit=200
+```
 
 Web arayüzünden indirilebilen örnek veri dosyaları:
 
@@ -274,8 +338,8 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `41/41`
-- Integration test: `66/66`
-- Toplam: `107/107`
+- Integration test: `79/79`
+- Toplam: `120/120`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
@@ -290,6 +354,15 @@ cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih a
 vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri
 Web hostunun gerçek notifier'ı kullandığını, hub negotiate route'unu ve refetch
 partial sözleşmesini doğrular.
+Dokuz ayrı API HTTP testi; DTO sözleşmesini, tek-gün/aralık filtrelerini, model
+binding davranışını ve
+`200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular. Gerçek
+API test hostu boş Finmaks anahtarıyla çalıştırılarak yalnız read-only MSSQL
+bağımlılıklarının kaydedildiği ayrıca doğrulanır. Gerçek
+MSSQL smoke kontrolü en güncel gün için 20 DTO, USD/TRY filtresi için tek kayıt
+ve bulunmayan tarih için `404 application/problem+json` üretmiştir. Tarihçe smoke
+kontrolü 8–9 Ağustos USD/TRY kayıtlarını iki sınır dahil ve yeniden eskiye sıralı
+döndürmüş; eksik bitiş tarihi SQL çalıştırılmadan `400` üretmiştir.
 
 ## Bilinen kapsam sınırları
 
@@ -297,7 +370,6 @@ partial sözleşmesini doğrular.
 - Grafik, CSV/Excel export ve public deployment zorunlu kapsamda değildir.
 - Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
 - Çoklu instance deployment için distributed session store henüz yoktur.
-- Ayrı kur API endpointleri henüz tamamlanmamıştır.
 - Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.
 
 ## Güvenlik

@@ -32,13 +32,9 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var connectionString = configuration.GetConnectionString(DatabaseConnectionName);
+        var connectionString = GetRequiredConnectionString(configuration);
 
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                $"Connection string '{DatabaseConnectionName}' has not been configured.");
-        }
+        services.AddExchangeRateReadServices(configuration);
 
         services
             .AddOptions<FinmaksOptions>()
@@ -60,9 +56,6 @@ public static class DependencyInjection
                     60 % options.IntervalMinutes == 0,
                 $"{ExchangeRateRecurringJobOptions.SectionName}:IntervalMinutes must be between 1 and 59 and divide 60 evenly for a stable cron schedule.")
             .ValidateOnStart();
-
-        services.AddDbContext<AssetValueAnalyzerDbContext>(options =>
-            options.UseSqlServer(connectionString));
 
         services
             .AddHttpClient<IFinmaksExchangeRateClient, FinmaksExchangeRateClient>(
@@ -119,5 +112,34 @@ public static class DependencyInjection
         }
 
         return services;
+    }
+
+    public static IServiceCollection AddExchangeRateReadServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var connectionString = GetRequiredConnectionString(configuration);
+
+        services.AddDbContext<AssetValueAnalyzerDbContext>(options =>
+            options.UseSqlServer(connectionString));
+        services.AddScoped<IExchangeRateReader, EfExchangeRateReader>();
+
+        return services;
+    }
+
+    private static string GetRequiredConnectionString(IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString(DatabaseConnectionName);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                $"Connection string '{DatabaseConnectionName}' has not been configured.");
+        }
+
+        return connectionString;
     }
 }

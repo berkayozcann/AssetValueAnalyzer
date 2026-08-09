@@ -23,6 +23,38 @@ namespace AssetValueAnalyzer.IntegrationTests;
 public sealed class DependencyInjectionTests
 {
     [Fact]
+    public void AddExchangeRateReadServices_WithoutFinmaksSettings_RegistersOnlyReadDependencies()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"ConnectionStrings:{DependencyInjection.DatabaseConnectionName}"] =
+                    "Server=example.invalid;Database=AssetValueAnalyzer;Integrated Security=True;TrustServerCertificate=True"
+            })
+            .Build();
+        var services = new ServiceCollection();
+
+        services.AddExchangeRateReadServices(configuration);
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<EfExchangeRateReader>(
+            scope.ServiceProvider.GetRequiredService<IExchangeRateReader>());
+        Assert.True(scope.ServiceProvider
+            .GetRequiredService<AssetValueAnalyzerDbContext>()
+            .Database
+            .IsSqlServer());
+        Assert.Null(scope.ServiceProvider.GetService<IFinmaksExchangeRateClient>());
+        Assert.Null(scope.ServiceProvider.GetService<ExchangeRateSynchronizationService>());
+    }
+
+    [Fact]
     public void AddInfrastructureServices_RegistersExchangeRateDependencies()
     {
         var configuration = CreateConfiguration();
@@ -73,6 +105,8 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IUsdCashChangeRateReader>());
         Assert.IsType<EfCurrentUsdExchangeRateReader>(
             scope.ServiceProvider.GetRequiredService<ICurrentUsdExchangeRateReader>());
+        Assert.IsType<EfExchangeRateReader>(
+            scope.ServiceProvider.GetRequiredService<IExchangeRateReader>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<CreateFinancialImpactReportService>());
         Assert.Same(
