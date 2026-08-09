@@ -2,6 +2,7 @@ extern alias WebApp;
 
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.Reports.Creation;
+using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Web.Hosting;
 using Microsoft.AspNetCore.Hosting;
@@ -26,7 +27,8 @@ public sealed class AssetValueAnalyzerWebApplicationFactory
             {
                 [$"ConnectionStrings:{DependencyInjection.DatabaseConnectionName}"] =
                     "Server=integration-test;Database=AssetValueAnalyzer;Integrated Security=true;TrustServerCertificate=True",
-                ["Finmaks:ApiKey"] = "integration-test-key"
+                ["Finmaks:ApiKey"] = "integration-test-key",
+                [$"{ExchangeRateRecurringJobOptions.SectionName}:Enabled"] = "false"
             });
         });
         builder.ConfigureTestServices(services =>

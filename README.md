@@ -12,6 +12,8 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - Finmaks için typed `HttpClient`, doğrulanan options ve `CashChangeRate` mapping'i.
 - EF Core Code First, MSSQL migration'ı ve idempotent kur insert/update akışı.
 - Uygulama başlangıcında Aralık 2021'den bugüne backfill veya eksik aralık tamamlama.
+- Hangfire + MSSQL storage ile uygulama açıkken varsayılan 3 dakikada bir bugünün
+  kurlarını idempotent biçimde yenileme.
 - Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
 - Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
 - Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
@@ -25,7 +27,6 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 
 Henüz tamamlanmayan ana işler:
 
-- Hangfire ile uygulama açıkken periyodik kur kontrolü.
 - Ayrı API projesinde güncel kur controller'ı ve response DTO sözleşmesi.
 - SignalR ile son kontrol/kur değişikliği bilgisinin refresh olmadan güncellenmesi.
 - Temiz MSSQL kurulumu, Docker/çalıştırma yolu, CI ve son teslim kontrolleri.
@@ -36,6 +37,7 @@ Henüz tamamlanmayan ana işler:
 - Razor Views ve strongly typed view model'ler
 - EF Core 10 Code First + MSSQL
 - Typed `HttpClient` ile Finmaks ExchangeRates entegrasyonu
+- Hangfire 1.8 + MSSQL job storage
 - ClosedXML ile XLSX okuma
 - Tailwind CSS 4 local CLI build
 - Vanilla JavaScript
@@ -67,7 +69,7 @@ Domain <- Application <- Web / Api
 
 - `Domain`: Kur entity'si ve framework'ten bağımsız temel kurallar.
 - `Application`: Import sözleşmeleri, kur senkronizasyonu, rapor doğrulama ve hesaplama.
-- `Infrastructure`: EF Core/MSSQL, Finmaks client ve XLSX parser implementasyonları.
+- `Infrastructure`: EF Core/MSSQL, Finmaks client, XLSX parser ve Hangfire job wiring'i.
 - `Web`: MVC controller'ları, Razor Views, session çalışma alanı ve tarayıcı kodu.
 - `Api`: Ayrı API host iskeleti; güncel kur endpointleri henüz eklenmedi.
 
@@ -88,9 +90,25 @@ Web uygulaması başlar
 ```
 
 Başlangıç senkronizasyonu hata alırsa hata loglanır ve web hostu çalışmaya devam
-eder. Periyodik kontrol henüz eklenmedi; bunun için Hangfire planlanıyor.
+eder.
 
-### 2. Dosya yükleme ve session
+### 2. Periyodik kur senkronizasyonu
+
+```text
+Hangfire recurring scheduler her 3 dakikada bir job enqueue eder
+→ Hangfire job için yeni bir DI scope oluşturur
+→ ExchangeRateSynchronizationJob mevcut Application servisini çağırır
+→ tarih parametresi verilmeden yalnız bugünün Finmaks kurları istenir
+→ aynı kur değerleri duplicate üretmez; RetrievedAtUtc son başarılı çekişe yenilenir
+→ değişen kur alanları varsa aynı business key üzerinde update edilir
+```
+
+Periyot `ExchangeRateRecurringJob:IntervalMinutes` ayarıyla değiştirilebilir;
+cron kararlılığı için değer 60'ı kalansız bölmelidir. Hangfire dashboard endpointi
+bilinçli olarak açılmamıştır. Job üç otomatik retry ve 120 saniyelik concurrent
+execution kilidi kullanır; kalıcı idempotency güvencesi MSSQL unique indexidir.
+
+### 3. Dosya yükleme ve session
 
 ```text
 POST Varlık/Endeks dosyası
@@ -105,7 +123,7 @@ Yüklenen finansal veriler MSSQL'e yazılmaz. Kullanıcının normalize dosya ve
 ve tamamlanan raporu, iki saatlik in-memory session içinde tutulur. MSSQL'de
 kalıcı olarak yalnız kur verileri bulunur.
 
-### 3. Rapor oluşturma
+### 4. Rapor oluşturma
 
 ```text
 POST /reports/create
@@ -160,6 +178,8 @@ Environment variable karşılıkları:
 ```text
 ConnectionStrings__AssetValueAnalyzer
 Finmaks__ApiKey
+ExchangeRateRecurringJob__Enabled
+ExchangeRateRecurringJob__IntervalMinutes
 ```
 
 ## İlk kurulum
@@ -186,6 +206,8 @@ dotnet ef database update \
 
 Bu komut `ExchangeRates` tablosunu ve
 `(BaseCurrencyCode, ForeignCurrencyCode, RateDate)` unique indexini oluşturur.
+Web uygulaması ilk kez başladığında Hangfire kendi operasyonel tablolarını aynı
+veritabanındaki ayrı `HangFire` şemasında otomatik hazırlar.
 
 ## Uygulamayı çalıştırma
 
@@ -245,8 +267,8 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `41/41`
-- Integration test: `60/60`
-- Toplam: `101/101`
+- Integration test: `63/63`
+- Toplam: `104/104`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
@@ -255,7 +277,9 @@ seçimini ve 14 kolonlu finansal hesabı kapsar. Beş gerçek HTTP smoke testi;
 ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
 başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
 Tam akış testi ayrıca iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
-tablosuna kadar gerçek MVC pipeline'ını çalıştırır.
+tablosuna kadar gerçek MVC pipeline'ını çalıştırır. Hangfire testleri; 3 dakikalık
+cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih aralığı
+vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar.
 
 ## Bilinen kapsam sınırları
 
@@ -263,7 +287,7 @@ tablosuna kadar gerçek MVC pipeline'ını çalıştırır.
 - Grafik, CSV/Excel export ve public deployment zorunlu kapsamda değildir.
 - Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
 - Çoklu instance deployment için distributed session store henüz yoktur.
-- Hangfire, SignalR ve ayrı kur API endpointleri henüz tamamlanmamıştır.
+- SignalR ve ayrı kur API endpointleri henüz tamamlanmamıştır.
 - Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.
 
 ## Güvenlik

@@ -6,6 +6,7 @@ using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Application.Reports.Calculation;
 using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
@@ -14,6 +15,8 @@ using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace AssetValueAnalyzer.IntegrationTests;
 
@@ -72,11 +75,46 @@ public sealed class DependencyInjectionTests
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());
+        var recurringJobOptions = scope.ServiceProvider
+            .GetRequiredService<IOptions<ExchangeRateRecurringJobOptions>>()
+            .Value;
+        Assert.Equal(
+            ExchangeRateRecurringJobOptions.DefaultIntervalMinutes,
+            recurringJobOptions.IntervalMinutes);
+        Assert.Equal("*/3 * * * *", Hangfire.Cron.MinuteInterval(
+            recurringJobOptions.IntervalMinutes));
 
         var dbContext = scope.ServiceProvider
             .GetRequiredService<AssetValueAnalyzerDbContext>();
 
         Assert.True(dbContext.Database.IsSqlServer());
+    }
+
+    [Fact]
+    public void AddInfrastructureServices_WithRecurringJobEnabled_RegistersHangfireServices()
+    {
+        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ExchangeRateRecurringJobOptions.SectionName}:Enabled"] = "true",
+            [$"{ExchangeRateRecurringJobOptions.SectionName}:IntervalMinutes"] = "3"
+        });
+        var services = new ServiceCollection();
+
+        services.AddLogging();
+        services.AddInfrastructureServices(configuration);
+
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(Hangfire.IRecurringJobManager));
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(ExchangeRateSynchronizationJob));
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IHostedService) &&
+                descriptor.ImplementationType ==
+                typeof(ExchangeRateRecurringJobRegistrationHostedService));
     }
 
     [Fact]
@@ -91,7 +129,27 @@ public sealed class DependencyInjectionTests
         Assert.Contains(DependencyInjection.DatabaseConnectionName, exception.Message);
     }
 
-    private static IConfiguration CreateConfiguration()
+    [Fact]
+    public void AddInfrastructureServices_WithInvalidRecurringInterval_RejectsOptions()
+    {
+        var configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ExchangeRateRecurringJobOptions.SectionName}:IntervalMinutes"] = "7"
+        });
+        var services = new ServiceCollection();
+
+        services.AddInfrastructureServices(configuration);
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider
+                .GetRequiredService<IOptions<ExchangeRateRecurringJobOptions>>()
+                .Value);
+    }
+
+    private static IConfiguration CreateConfiguration(
+        IReadOnlyDictionary<string, string?>? overrides = null)
     {
         var values = new Dictionary<string, string?>
         {
@@ -100,6 +158,14 @@ public sealed class DependencyInjectionTests
             [$"{FinmaksOptions.SectionName}:BaseAddress"] = "https://example.test/",
             [$"{FinmaksOptions.SectionName}:ApiKey"] = "integration-test-key"
         };
+
+        if (overrides is not null)
+        {
+            foreach (var pair in overrides)
+            {
+                values[pair.Key] = pair.Value;
+            }
+        }
 
         return new ConfigurationBuilder()
             .AddInMemoryCollection(values)
