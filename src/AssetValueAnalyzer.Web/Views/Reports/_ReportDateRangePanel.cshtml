@@ -1,0 +1,133 @@
+@using AssetValueAnalyzer.Web.Features.Reports
+@using AssetValueAnalyzer.Web.Features.Shared
+@model ReportPageViewModel
+
+@{
+    var reportCreationError = TempData["ReportCreationError"] as string;
+    var minimumMonth = Model.AvailableStartMonth.ToString("yyyy-MM");
+    var maximumMonth = Model.AvailableEndMonth.ToString("yyyy-MM");
+}
+
+<div class="relative w-full sm:w-40"
+     data-date-range
+     data-range-validation-url="@Url.Action("ValidateRange", "Reports")"
+     data-open-on-error="@(!string.IsNullOrWhiteSpace(reportCreationError) ? "true" : "false")">
+    <button type="button"
+            class="secondary-button inline-flex h-10 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium"
+            aria-expanded="false"
+            aria-controls="report-date-range-panel"
+            data-date-range-toggle>
+        <svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+            <path d="M8 3v4M16 3v4M3 10h18"></path>
+        </svg>
+        Tarih Aralığı
+        <svg class="h-3.5 w-3.5 transition" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-date-range-chevron>
+            <path d="m6 9 6 6 6-6"></path>
+        </svg>
+    </button>
+
+    <section id="report-date-range-panel"
+             class="date-range-panel fixed z-30 rounded-lg p-3 sm:p-4"
+             data-date-range-panel
+             hidden>
+        <form asp-controller="Reports"
+              asp-action="Create"
+              method="post"
+              data-date-range-form>
+            <div>
+                <h2 class="text-base font-semibold text-white">Rapor Tarih Aralığı</h2>
+                <p class="mt-1 text-xs text-slate-400">Raporu seçtiğiniz tarih aralığına göre yeniden hesaplayın.</p>
+            </div>
+
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                <div class="relative"
+                     data-month-picker
+                     data-min-month="@minimumMonth"
+                     data-max-month="@maximumMonth"
+                     data-completed-months-only="true">
+                    <span class="mb-1.5 block text-xs text-slate-400">Başlangıç Ayı</span>
+                    <button type="button"
+                            class="field-card flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left"
+                            aria-expanded="false"
+                            aria-controls="report-start-month-picker"
+                            data-month-picker-toggle>
+                        <span class="text-sm font-medium text-white" data-month-picker-display>@MonthDisplayFormatter.Format(Model.StartMonth)</span>
+                        <svg class="h-4 w-4 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                            <path d="M8 3v4M16 3v4M3 10h18"></path>
+                        </svg>
+                    </button>
+                    <input name="StartMonth"
+                           type="hidden"
+                           value="@Model.StartMonth.ToString("yyyy-MM")"
+                           data-month-picker-input
+                           data-date-range-start />
+                    <section id="report-start-month-picker"
+                             class="month-picker-panel fixed z-50 rounded-lg p-3"
+                             data-month-picker-panel
+                             hidden>
+                        <div class="flex items-center justify-between">
+                            <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Önceki yıl" data-month-year-previous>←</button>
+                            <strong class="text-sm text-white" data-month-year></strong>
+                            <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Sonraki yıl" data-month-year-next>→</button>
+                        </div>
+                        <div class="mt-2 grid grid-cols-3 gap-1.5" data-month-grid></div>
+                    </section>
+                </div>
+
+                <div class="relative"
+                     data-month-picker
+                     data-min-month="@minimumMonth"
+                     data-max-month="@maximumMonth"
+                     data-completed-months-only="true">
+                    <span class="mb-1.5 block text-xs text-slate-400">Bitiş Ayı</span>
+                    <button type="button"
+                            class="field-card flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left"
+                            aria-expanded="false"
+                            aria-controls="report-end-month-picker"
+                            data-month-picker-toggle>
+                        <span class="text-sm font-medium text-white" data-month-picker-display>@MonthDisplayFormatter.Format(Model.EndMonth)</span>
+                        <svg class="h-4 w-4 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                            <path d="M8 3v4M16 3v4M3 10h18"></path>
+                        </svg>
+                    </button>
+                    <input name="EndMonth"
+                           type="hidden"
+                           value="@Model.EndMonth.ToString("yyyy-MM")"
+                           data-month-picker-input
+                           data-date-range-end />
+                    <section id="report-end-month-picker"
+                             class="month-picker-panel fixed z-50 rounded-lg p-3"
+                             data-month-picker-panel
+                             hidden>
+                        <div class="flex items-center justify-between">
+                            <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Önceki yıl" data-month-year-previous>←</button>
+                            <strong class="text-sm text-white" data-month-year></strong>
+                            <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Sonraki yıl" data-month-year-next>→</button>
+                        </div>
+                        <div class="mt-2 grid grid-cols-3 gap-1.5" data-month-grid></div>
+                    </section>
+                </div>
+            </div>
+
+            <p class="mt-2 text-xs text-negative-400"
+               data-date-range-error
+               aria-live="polite"
+               hidden="@(string.IsNullOrWhiteSpace(reportCreationError))">
+                @reportCreationError
+            </p>
+
+            <div class="mt-3 flex flex-wrap justify-end gap-2">
+                <button type="button"
+                        class="secondary-button inline-flex h-9 w-24 items-center justify-center rounded-lg px-3 text-sm font-medium"
+                        data-date-range-cancel>Vazgeç</button>
+                <button type="submit"
+                        class="primary-button inline-flex h-9 w-24 items-center justify-center rounded-lg px-3 text-sm font-semibold"
+                        data-date-range-apply
+                        disabled>Uygula</button>
+            </div>
+        </form>
+    </section>
+</div>

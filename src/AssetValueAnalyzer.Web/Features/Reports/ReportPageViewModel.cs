@@ -6,7 +6,11 @@ public sealed record ReportPageViewModel(
     string Period,
     ExchangeRateCardViewModel ExchangeRate,
     IReadOnlyList<ReportKpiViewModel> Kpis,
-    IReadOnlyList<ReportRowViewModel> Rows);
+    IReadOnlyList<ReportRowViewModel> Rows,
+    DateOnly StartMonth,
+    DateOnly EndMonth,
+    DateOnly AvailableStartMonth,
+    DateOnly AvailableEndMonth);
 
 public sealed record ReportKpiViewModel(
     string Label,

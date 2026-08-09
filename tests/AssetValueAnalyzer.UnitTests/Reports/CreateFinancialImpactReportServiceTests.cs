@@ -200,11 +200,42 @@ public sealed class CreateFinancialImpactReportServiceTests
         Assert.Equal(0, rateReader.CallCount);
     }
 
+    [Fact]
+    public async Task CreateAsync_WithIncompleteCurrentMonth_RejectsRangeBeforeReadingRates()
+    {
+        var rateReader = new FakeUsdCashChangeRateReader([]);
+        var timeProvider = new FixedTimeProvider(
+            new DateTimeOffset(2026, 8, 9, 12, 0, 0, TimeSpan.Zero));
+        var service = CreateService(rateReader, timeProvider);
+        MonthlyAssetValueInput[] assetValues =
+        [
+            new(new DateOnly(2026, 7, 1), 1_000m),
+            new(new DateOnly(2026, 8, 1), 1_100m)
+        ];
+        MonthlyProducerPriceIndexInput[] indices =
+        [
+            new(new DateOnly(2026, 7, 1), 100m),
+            new(new DateOnly(2026, 8, 1), 110m)
+        ];
+
+        var result = await service.CreateAsync(
+            new(assetValues, indices),
+            CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("IncompleteReportMonth", error.Code);
+        Assert.Equal(new DateOnly(2026, 8, 1), error.Month);
+        Assert.Contains("Temmuz 2026", error.Message);
+        Assert.Equal(0, rateReader.CallCount);
+    }
+
     private static CreateFinancialImpactReportService CreateService(
-        IUsdCashChangeRateReader rateReader) =>
+        IUsdCashChangeRateReader rateReader,
+        TimeProvider? timeProvider = null) =>
         new(
             rateReader,
-            new FinancialImpactReportRangeValidator(),
+            new FinancialImpactReportRangeValidator(timeProvider ?? TimeProvider.System),
             new FinancialImpactCalculator());
 
     private static FakeUsdCashChangeRateReader CreateCompleteRateReader() =>
@@ -253,5 +284,13 @@ public sealed class CreateFinancialImpactReportServiceTests
 
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class FixedTimeProvider(
+        DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 }

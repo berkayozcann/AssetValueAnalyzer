@@ -4,7 +4,8 @@ using System.Globalization;
 
 namespace AssetValueAnalyzer.Application.Reports.Creation;
 
-public sealed class FinancialImpactReportRangeValidator
+public sealed class FinancialImpactReportRangeValidator(
+    TimeProvider timeProvider)
 {
     private static readonly CultureInfo TurkishCulture =
         CultureInfo.GetCultureInfo("tr-TR");
@@ -31,6 +32,20 @@ public sealed class FinancialImpactReportRangeValidator
 
         var startMonth = request.StartMonth ?? assetValues[0].Month;
         var endMonth = request.EndMonth ?? assetValues[^1].Month;
+        var currentDate = timeProvider.GetLocalNow();
+        var currentMonth = new DateOnly(currentDate.Year, currentDate.Month, 1);
+
+        if (endMonth >= currentMonth)
+        {
+            return FinancialImpactReportRangeValidationResult.Invalid(
+            [
+                new(
+                    "IncompleteReportMonth",
+                    $"Tamamlanmamış mevcut ay veya gelecek aylar rapora dahil edilemez. En geç {FormatMonth(currentMonth.AddMonths(-1))} seçilebilir.",
+                    endMonth)
+            ]);
+        }
+
         var selectedAssetValues = assetValues
             .Where(value => value.Month >= startMonth && value.Month <= endMonth)
             .ToArray();

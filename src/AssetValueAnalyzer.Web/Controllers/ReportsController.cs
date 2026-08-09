@@ -97,14 +97,14 @@ public sealed class ReportsController(
         if (snapshot.AssetValues is null || snapshot.ProducerPriceIndices is null)
         {
             SetReportError("Rapor oluşturmak için önce Varlık ve Endeks dosyalarını yükleyin.");
-            return RedirectToAction("Index", "Home");
+            return RedirectAfterCreationError(snapshot);
         }
 
         if (!TryParseMonth(form.StartMonth, out var startMonth) ||
             !TryParseMonth(form.EndMonth, out var endMonth))
         {
             SetReportError("Tarih alanları geçerli bir ay ve yıl içermelidir.");
-            return RedirectToAction("Index", "Home");
+            return RedirectAfterCreationError(snapshot);
         }
 
         var result = await createReportService.CreateAsync(
@@ -114,13 +114,16 @@ public sealed class ReportsController(
         if (!result.IsValid)
         {
             SetReportError(string.Join(" ", result.Errors.Select(error => error.Message)));
-            return RedirectToAction("Index", "Home");
+            return RedirectAfterCreationError(snapshot);
         }
 
         var reportViewModel = ReportPageViewModelFactory.Create(
             result.Report!,
-            await GetCurrentExchangeRateCardAsync(cancellationToken));
+            await GetCurrentExchangeRateCardAsync(cancellationToken),
+            snapshot.AssetValues.FirstMonth,
+            snapshot.AssetValues.LastMonth);
         reportWorkspaceSession.SaveCompletedReport(reportViewModel);
+        TempData["ResetReportWizard"] = true;
 
         return RedirectToAction(nameof(Index));
     }
@@ -137,6 +140,12 @@ public sealed class ReportsController(
     {
         TempData["ReportCreationError"] = message;
     }
+
+    private IActionResult RedirectAfterCreationError(
+        ReportWorkspaceSnapshot snapshot) =>
+        snapshot.CompletedReport is null
+            ? RedirectToAction("Index", "Home")
+            : RedirectToAction(nameof(Index));
 
     private async Task<ExchangeRateCardViewModel> GetCurrentExchangeRateCardAsync(
         CancellationToken cancellationToken) =>

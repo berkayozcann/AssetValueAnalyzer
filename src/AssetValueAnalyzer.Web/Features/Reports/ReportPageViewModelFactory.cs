@@ -10,7 +10,9 @@ public static class ReportPageViewModelFactory
 
     public static ReportPageViewModel Create(
         FinancialImpactReport report,
-        ExchangeRateCardViewModel exchangeRate)
+        ExchangeRateCardViewModel exchangeRate,
+        DateOnly? availableStartMonth = null,
+        DateOnly? availableEndMonth = null)
     {
         ArgumentNullException.ThrowIfNull(report);
 
@@ -59,7 +61,11 @@ public static class ReportPageViewModelFactory
                         : FormatPercentage(row.MonthlyInflationAdjustedChangeRate),
                     InflationAdjustedChangeRate: FormatPercentage(row.InflationAdjustedChangeRate),
                     InflationEffect: FormatPercentage(row.InflationEffectRate)))
-                .ToArray());
+                .ToArray(),
+            StartMonth: firstRow.Month,
+            EndMonth: lastRow.Month,
+            AvailableStartMonth: availableStartMonth ?? firstRow.Month,
+            AvailableEndMonth: availableEndMonth ?? lastRow.Month);
     }
 
     private static ReportKpiViewModel CreateRateKpi(

@@ -54,7 +54,11 @@ public sealed class ReportPageViewModelFactoryTests
             "Artış",
             "Son senkronizasyon: 08.08.2026 12:00",
             ExchangeRateTrend.Increased);
-        var viewModel = ReportPageViewModelFactory.Create(report, currentRate);
+        var viewModel = ReportPageViewModelFactory.Create(
+            report,
+            currentRate,
+            new DateOnly(2021, 11, 1),
+            new DateOnly(2022, 3, 1));
 
         Assert.Equal("Aralık 2021 – Ocak 2022", viewModel.Period);
         Assert.Equal("₺1.100,50", viewModel.Kpis[0].Value);
@@ -65,5 +69,9 @@ public sealed class ReportPageViewModelFactoryTests
         Assert.Equal("+%10,05", viewModel.Rows[1].MonthlyAssetIncreaseRate);
         Assert.Equal("47,5000", viewModel.ExchangeRate.FormattedRate);
         Assert.Equal(ExchangeRateTrend.Increased, viewModel.ExchangeRate.Trend);
+        Assert.Equal(new DateOnly(2021, 12, 1), viewModel.StartMonth);
+        Assert.Equal(new DateOnly(2022, 1, 1), viewModel.EndMonth);
+        Assert.Equal(new DateOnly(2021, 11, 1), viewModel.AvailableStartMonth);
+        Assert.Equal(new DateOnly(2022, 3, 1), viewModel.AvailableEndMonth);
     }
 }

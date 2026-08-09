@@ -6,7 +6,9 @@ using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
 using AssetValueAnalyzer.Web.Features.Reports;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
 namespace AssetValueAnalyzer.IntegrationTests.Reports;
 
@@ -92,6 +94,7 @@ public sealed class ReportsControllerTests
         Assert.Equal("+%10,00", report.Kpis[1].Value);
         Assert.Equal("47,2500", report.ExchangeRate.FormattedRate);
         Assert.Equal("Güncel USD/TRY", report.ExchangeRate.Label);
+        Assert.True(Assert.IsType<bool>(controller.TempData["ResetReportWizard"]));
     }
 
     [Fact]
@@ -150,6 +153,73 @@ public sealed class ReportsControllerTests
         Assert.Contains("\"includedMonthCount\":2", serialized);
     }
 
+    [Fact]
+    public async Task Create_FromCompletedReport_RecalculatesSelectedRangeAndKeepsFileBounds()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "varlik.xlsx",
+            [
+                new MonthlyAssetValueInput(new DateOnly(2021, 12, 1), 1_000m),
+                new MonthlyAssetValueInput(new DateOnly(2022, 1, 1), 1_100m),
+                new MonthlyAssetValueInput(new DateOnly(2022, 2, 1), 1_200m)
+            ]);
+        workspace.SaveProducerPriceIndices(
+            "endeks.xlsx",
+            [
+                new MonthlyProducerPriceIndexInput(new DateOnly(2021, 12, 1), 100m),
+                new MonthlyProducerPriceIndexInput(new DateOnly(2022, 1, 1), 110m),
+                new MonthlyProducerPriceIndexInput(new DateOnly(2022, 2, 1), 120m)
+            ]);
+        workspace.SaveCompletedReport(TestReportPageViewModelFactory.Create());
+        var controller = CreateController(
+            workspace,
+            [
+                new UsdCashChangeRate(new DateOnly(2022, 1, 31), 15m),
+                new UsdCashChangeRate(new DateOnly(2022, 2, 28), 16m)
+            ]);
+
+        var result = await controller.Create(
+            new CreateReportForm("2022-01", "2022-02"),
+            CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(ReportsController.Index), redirect.ActionName);
+        var report = Assert.IsType<ReportPageViewModel>(workspace.Get().CompletedReport);
+        Assert.Equal("Ocak 2022 – Şubat 2022", report.Period);
+        Assert.Equal(new DateOnly(2022, 1, 1), report.StartMonth);
+        Assert.Equal(new DateOnly(2022, 2, 1), report.EndMonth);
+        Assert.Equal(new DateOnly(2021, 12, 1), report.AvailableStartMonth);
+        Assert.Equal(new DateOnly(2022, 2, 1), report.AvailableEndMonth);
+        Assert.Equal(2, report.Rows.Count);
+    }
+
+    [Fact]
+    public async Task Create_FromCompletedReportWithInvalidRange_PreservesPreviousReport()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "varlik.xlsx",
+            [
+                new MonthlyAssetValueInput(new DateOnly(2022, 1, 1), 1_000m),
+                new MonthlyAssetValueInput(new DateOnly(2022, 2, 1), 1_100m)
+            ]);
+        workspace.SaveProducerPriceIndices(
+            "endeks.xlsx",
+            [new MonthlyProducerPriceIndexInput(new DateOnly(2022, 1, 1), 100m)]);
+        var previousReport = TestReportPageViewModelFactory.Create();
+        workspace.SaveCompletedReport(previousReport);
+        var controller = CreateController(workspace);
+
+        var result = await controller.Create(
+            new CreateReportForm("2022-01", "2022-02"),
+            CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(ReportsController.Index), redirect.ActionName);
+        Assert.Same(previousReport, workspace.Get().CompletedReport);
+    }
+
     private static ReportsController CreateController(
         TestReportWorkspaceSession workspace,
         IReadOnlyList<UsdCashChangeRate>? rates = null)
@@ -157,19 +227,29 @@ public sealed class ReportsControllerTests
         var rateReader = new FakeUsdCashChangeRateReader(rates ?? []);
         var service = new CreateFinancialImpactReportService(
             rateReader,
-            new FinancialImpactReportRangeValidator(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
             new FinancialImpactCalculator());
 
-        return new ReportsController(
+        var controller = new ReportsController(
             workspace,
             service,
-            new FinancialImpactReportRangeValidator(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
             new FakeCurrentUsdExchangeRateReader(
                 new CurrentUsdExchangeRate(
                     47.25m,
                     new DateOnly(2026, 8, 8),
                     new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero),
                     47m)));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+        controller.TempData = new TempDataDictionary(
+            controller.HttpContext,
+            new InMemoryTempDataProvider());
+
+        return controller;
     }
 
     private sealed class FakeUsdCashChangeRateReader(
@@ -186,5 +266,17 @@ public sealed class ReportsControllerTests
 
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class InMemoryTempDataProvider : ITempDataProvider
+    {
+        private IDictionary<string, object> values = new Dictionary<string, object>();
+
+        public IDictionary<string, object> LoadTempData(HttpContext context) => values;
+
+        public void SaveTempData(
+            HttpContext context,
+            IDictionary<string, object> values) =>
+            this.values = new Dictionary<string, object>(values);
     }
 }

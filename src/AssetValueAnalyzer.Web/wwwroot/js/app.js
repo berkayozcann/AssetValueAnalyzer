@@ -1,4 +1,22 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const wizardStorageKeys = {
+    step: "AssetValueAnalyzer.ReportWizard.Step",
+    startMonth: "AssetValueAnalyzer.ReportWizard.StartMonth",
+    endMonth: "AssetValueAnalyzer.ReportWizard.EndMonth",
+  };
+
+  const clearWizardStorage = () => {
+    try {
+      Object.values(wizardStorageKeys).forEach((key) => window.sessionStorage.removeItem(key));
+    } catch {
+      // Session storage kullanılamıyorsa temizlenecek kalıcı UI durumu yoktur.
+    }
+  };
+
+  if (document.querySelector('[data-reset-report-wizard="true"]')) {
+    clearWizardStorage();
+  }
+
   const infoTooltips = [...document.querySelectorAll("[data-info-tooltip]")].map((container) => {
     const trigger = container.querySelector("button");
     const content = container.querySelector("[data-info-tooltip-content]");
@@ -67,6 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return ((endYear - startYear) * 12) + endMonth - startMonth + 1;
   };
 
+  const getLastCompletedMonth = () => {
+    const now = new Date();
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    return `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+  };
+
   const monthPickers = [...document.querySelectorAll("[data-month-picker]")];
 
   const closeMonthPickers = (except = null) => {
@@ -86,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const margin = 16;
     const gap = 8;
     const toggleRect = toggle.getBoundingClientRect();
-    const panelWidth = Math.min(Math.max(toggleRect.width, 288), window.innerWidth - margin * 2);
+    const panelWidth = Math.min(toggleRect.width, window.innerWidth - margin * 2);
 
     panel.style.width = `${panelWidth}px`;
     panel.style.left = `${Math.min(Math.max(toggleRect.left, margin), window.innerWidth - panelWidth - margin)}px`;
@@ -115,7 +140,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const grid = picker.querySelector("[data-month-grid]");
     const getBounds = () => {
       const minMonth = picker.dataset.minMonth;
-      const maxMonth = picker.dataset.maxMonth;
+      const configuredMaxMonth = picker.dataset.maxMonth;
+      const maxMonth = picker.dataset.completedMonthsOnly === "true"
+        ? [configuredMaxMonth, getLastCompletedMonth()].sort()[0]
+        : configuredMaxMonth;
 
       return {
         minMonth,
@@ -237,14 +265,54 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggle = dateRange.querySelector("[data-date-range-toggle]");
     const panel = dateRange.querySelector("[data-date-range-panel]");
     const chevron = dateRange.querySelector("[data-date-range-chevron]");
+    const form = dateRange.querySelector("[data-date-range-form]");
     const apply = dateRange.querySelector("[data-date-range-apply]");
+    const cancel = dateRange.querySelector("[data-date-range-cancel]");
     const start = dateRange.querySelector("[data-date-range-start]");
     const end = dateRange.querySelector("[data-date-range-end]");
     const error = dateRange.querySelector("[data-date-range-error]");
-    const reportPeriod = document.querySelector("[data-report-period]");
+    const antiforgeryToken = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    let validationRequestId = 0;
+    let isRangeValid = false;
+
+    const positionDateRangePanel = () => {
+      const margin = 16;
+      const gap = 8;
+      const toggleRect = toggle.getBoundingClientRect();
+      const panelWidth = Math.min(380, window.innerWidth - margin * 2);
+
+      panel.style.width = `${panelWidth}px`;
+      panel.style.left = `${Math.min(Math.max(toggleRect.right - panelWidth, margin), window.innerWidth - panelWidth - margin)}px`;
+      panel.style.visibility = "hidden";
+      panel.hidden = false;
+
+      const panelHeight = panel.getBoundingClientRect().height;
+      const spaceBelow = window.innerHeight - toggleRect.bottom - margin;
+      const top = spaceBelow >= panelHeight
+        ? toggleRect.bottom + gap
+        : Math.max(margin, toggleRect.top - panelHeight - gap);
+
+      panel.style.top = `${top}px`;
+      panel.style.visibility = "visible";
+    };
+
+    const setError = (message) => {
+      error.textContent = message;
+      error.hidden = message.length === 0;
+    };
+
+    const setApplyState = (isValid) => {
+      isRangeValid = isValid;
+      apply.disabled = !isValid;
+    };
 
     const setDateRangeOpen = (isOpen) => {
-      panel.hidden = !isOpen;
+      if (isOpen) {
+        positionDateRangePanel();
+      } else {
+        panel.hidden = true;
+      }
+
       toggle.setAttribute("aria-expanded", String(isOpen));
       chevron.classList.toggle("rotate-180", isOpen);
 
@@ -253,15 +321,88 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    const validateRange = () => {
-      const isValid = start.value <= end.value;
-      error.hidden = isValid;
-      return isValid;
+    const getLocalRangeError = () => {
+      if (!start.value || !end.value) {
+        return "Başlangıç ve bitiş ayını seçin.";
+      }
+
+      if (start.value === end.value) {
+        return "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
+      }
+
+      if (start.value > end.value) {
+        return "Başlangıç ayı bitiş ayından sonra olamaz.";
+      }
+
+      return "";
     };
 
-    start.addEventListener("change", validateRange);
-    end.addEventListener("change", validateRange);
-    toggle.addEventListener("click", () => setDateRangeOpen(panel.hidden));
+    const validateRange = async () => {
+      const localError = getLocalRangeError();
+
+      if (localError) {
+        validationRequestId++;
+        setApplyState(false);
+        setError(localError);
+        return false;
+      }
+
+      const requestId = ++validationRequestId;
+      setApplyState(false);
+      setError("");
+
+      const body = new URLSearchParams({
+        StartMonth: start.value,
+        EndMonth: end.value,
+      });
+
+      if (antiforgeryToken) {
+        body.set("__RequestVerificationToken", antiforgeryToken);
+      }
+
+      try {
+        const response = await fetch(dateRange.dataset.rangeValidationUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body,
+        });
+        const result = await response.json();
+
+        if (requestId !== validationRequestId) {
+          return false;
+        }
+
+        if (!response.ok || !result.isValid) {
+          setApplyState(false);
+          setError(result.errors?.[0]?.message ?? "Seçilen tarih aralığı doğrulanamadı.");
+          return false;
+        }
+
+        setApplyState(true);
+        setError("");
+        return true;
+      } catch {
+        if (requestId !== validationRequestId) {
+          return false;
+        }
+
+        setApplyState(false);
+        setError("Tarih aralığı kontrol servisine ulaşılamadı.");
+        return false;
+      }
+    };
+
+    start.addEventListener("change", () => void validateRange());
+    end.addEventListener("change", () => void validateRange());
+    toggle.addEventListener("click", () => {
+      const willOpen = panel.hidden;
+      setDateRangeOpen(willOpen);
+
+      if (willOpen) {
+        void validateRange();
+      }
+    });
+    cancel.addEventListener("click", () => setDateRangeOpen(false));
 
     dateRange.addEventListener("click", (event) => {
       if (!event.target.closest("[data-month-picker]")) {
@@ -271,16 +412,28 @@ document.addEventListener("DOMContentLoaded", () => {
       event.stopPropagation();
     });
 
-    apply.addEventListener("click", () => {
-      if (!validateRange()) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!isRangeValid && !(await validateRange())) {
         return;
       }
 
-      reportPeriod.textContent = `${formatMonth(start.value)} – ${formatMonth(end.value)}`;
-      setDateRangeOpen(false);
+      apply.disabled = true;
+      form.submit();
     });
 
     document.addEventListener("click", () => setDateRangeOpen(false));
+
+    window.addEventListener("resize", () => {
+      if (!panel.hidden) {
+        positionDateRangePanel();
+      }
+    });
+
+    if (dateRange.dataset.openOnError === "true") {
+      setDateRangeOpen(true);
+    }
   }
 
   const reportPagination = document.querySelector("[data-report-pagination]");
@@ -358,6 +511,23 @@ document.addEventListener("DOMContentLoaded", () => {
     rangeValidationRequestId: 0,
     includedMonthCount: null,
     reportLocked: wizard.dataset.reportLocked === "true",
+    fileUploadInProgress: false,
+  };
+
+  const readWizardStorage = (key) => {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const writeWizardStorage = (key, value) => {
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Tarayıcı depolaması kapalıysa akış yalnız mevcut sayfa ömründe çalışır.
+    }
   };
 
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
@@ -371,6 +541,43 @@ document.addEventListener("DOMContentLoaded", () => {
   const endMonthInput = wizard.querySelector("#endMonth");
   const reportCreationError = wizard.querySelector("[data-report-creation-error]");
   const antiforgeryToken = wizard.querySelector('input[name="__RequestVerificationToken"]')?.value;
+  const hasValidatedFiles =
+    state.assetValidationState === "valid" &&
+    state.indexValidationState === "valid";
+  const storedStep = Number(readWizardStorage(wizardStorageKeys.step));
+  const requestedInitialStep = hasValidatedFiles && [2, 3].includes(storedStep)
+    ? storedStep
+    : 1;
+
+  if (!hasValidatedFiles) {
+    clearWizardStorage();
+  }
+
+  const restoreMonthSelection = (input, storageKey) => {
+    const storedValue = readWizardStorage(storageKey);
+
+    if (!storedValue ||
+        !state.assetFirstMonth ||
+        !state.assetLastMonth ||
+        storedValue < state.assetFirstMonth ||
+        storedValue > state.assetLastMonth) {
+      return;
+    }
+
+    const picker = input.closest("[data-month-picker]");
+    const display = picker?.querySelector("[data-month-picker-display]");
+    input.value = storedValue;
+
+    if (display) {
+      display.textContent = formatMonth(storedValue);
+      display.classList.add("text-white");
+      display.classList.remove("text-slate-400");
+    }
+  };
+
+  restoreMonthSelection(startMonthInput, wizardStorageKeys.startMonth);
+  restoreMonthSelection(endMonthInput, wizardStorageKeys.endMonth);
+  state.step = requestedInitialStep === 3 ? 2 : requestedInitialStep;
 
   const getLocalRangeError = () => {
     const startMonth = startMonthInput.value || state.assetFirstMonth;
@@ -486,6 +693,9 @@ document.addEventListener("DOMContentLoaded", () => {
     state.rangeValidationRequestId++;
     state.rangeValidationState = "idle";
     state.includedMonthCount = null;
+    writeWizardStorage(wizardStorageKeys.startMonth, "");
+    writeWizardStorage(wizardStorageKeys.endMonth, "");
+    writeWizardStorage(wizardStorageKeys.step, "1");
     setRangeError("");
     updateRangeContinueState();
   };
@@ -495,6 +705,8 @@ document.addEventListener("DOMContentLoaded", () => {
       reportCreationError.hidden = true;
     }
 
+    writeWizardStorage(wizardStorageKeys.startMonth, startMonthInput.value);
+    writeWizardStorage(wizardStorageKeys.endMonth, endMonthInput.value);
     void validateWizardRange();
   };
 
@@ -552,8 +764,24 @@ document.addEventListener("DOMContentLoaded", () => {
     button.classList.toggle("hidden", !visible);
 
     if (visible) {
-      button.disabled = false;
+      button.disabled = state.fileUploadInProgress;
     }
+  };
+
+  const setUploadControlsDisabled = (disabled) => {
+    state.fileUploadInProgress = disabled;
+    wizard.setAttribute("aria-busy", String(disabled));
+
+    fileInputs.forEach((input) => {
+      input.disabled = disabled;
+      const label = input.closest("label");
+      label?.classList.toggle("cursor-not-allowed", disabled);
+      label?.classList.toggle("opacity-30", disabled);
+    });
+
+    wizard.querySelectorAll("[data-file-clear]").forEach((button) => {
+      button.disabled = disabled;
+    });
   };
 
   const validateAssetFile = async (file, row, requestId) => {
@@ -764,6 +992,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  const updateConfirmationSummary = () => {
+    const selectedStart = startMonthInput.value;
+    const selectedEnd = endMonthInput.value;
+    const effectiveStart = selectedStart || state.assetFirstMonth;
+    const effectiveEnd = selectedEnd || state.assetLastMonth;
+    let automaticNote = "";
+
+    if (!selectedStart && !selectedEnd) {
+      automaticNote = "Dosyanın ilk ve son ayı kullanıldı.";
+    } else if (!selectedStart) {
+      automaticNote = "Başlangıç için dosyanın ilk ayı kullanıldı.";
+    } else if (!selectedEnd) {
+      automaticNote = "Bitiş için dosyanın son ayı kullanıldı.";
+    }
+
+    wizard.querySelector("[data-summary-period]").textContent =
+      `${formatMonth(effectiveStart)} – ${formatMonth(effectiveEnd)}`;
+    const automaticNoteRow = wizard.querySelector("[data-summary-automatic-note-row]");
+    const automaticNoteText = wizard.querySelector("[data-summary-automatic-note]");
+    automaticNoteText.textContent = automaticNote;
+    automaticNoteRow.classList.toggle("hidden", !automaticNote);
+    automaticNoteRow.classList.toggle("flex", Boolean(automaticNote));
+    wizard.querySelector("[data-summary-duration]").textContent =
+      `${state.includedMonthCount ?? countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
+  };
+
   const updateFileSummaries = () => {
     wizard.querySelectorAll("[data-summary-asset]").forEach((element) => {
       element.textContent = state.assetFileName ?? "—";
@@ -775,7 +1029,20 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   fileInputs.forEach((input) => {
-    input.addEventListener("change", async () => setFileState(input));
+    input.addEventListener("change", async () => {
+      if (state.fileUploadInProgress) {
+        input.value = "";
+        return;
+      }
+
+      setUploadControlsDisabled(true);
+
+      try {
+        await setFileState(input);
+      } finally {
+        setUploadControlsDisabled(false);
+      }
+    });
   });
 
   wizard.querySelectorAll("[data-file-clear]").forEach((button) => {
@@ -866,6 +1133,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       state.step = nextStep;
+      writeWizardStorage(wizardStorageKeys.step, String(nextStep));
       updateFileSummaries();
 
       if (nextStep === 2) {
@@ -873,29 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (nextStep === 3) {
-        const selectedStart = startMonthInput.value;
-        const selectedEnd = endMonthInput.value;
-        const effectiveStart = selectedStart || state.assetFirstMonth;
-        const effectiveEnd = selectedEnd || state.assetLastMonth;
-        let automaticNote = "";
-
-        if (!selectedStart && !selectedEnd) {
-          automaticNote = "Dosyanın ilk ve son ayı kullanıldı.";
-        } else if (!selectedStart) {
-          automaticNote = "Başlangıç için dosyanın ilk ayı kullanıldı.";
-        } else if (!selectedEnd) {
-          automaticNote = "Bitiş için dosyanın son ayı kullanıldı.";
-        }
-
-        wizard.querySelector("[data-summary-period]").textContent =
-          `${formatMonth(effectiveStart)} – ${formatMonth(effectiveEnd)}`;
-        const automaticNoteRow = wizard.querySelector("[data-summary-automatic-note-row]");
-        const automaticNoteText = wizard.querySelector("[data-summary-automatic-note]");
-        automaticNoteText.textContent = automaticNote;
-        automaticNoteRow.classList.toggle("hidden", !automaticNote);
-        automaticNoteRow.classList.toggle("flex", Boolean(automaticNote));
-        wizard.querySelector("[data-summary-duration]").textContent =
-          `${state.includedMonthCount ?? countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
+        updateConfirmationSummary();
       }
 
       closeMonthPickers();
@@ -908,6 +1154,16 @@ document.addEventListener("DOMContentLoaded", () => {
   updateContinueState();
   updateRangeContinueState();
   renderStep();
+
+  if (state.step === 2) {
+    void validateWizardRange().then((isValid) => {
+      if (isValid && requestedInitialStep === 3) {
+        state.step = 3;
+        updateConfirmationSummary();
+        renderStep();
+      }
+    });
+  }
 
   if (state.reportLocked) {
     wizard.querySelectorAll("button, input").forEach((control) => {

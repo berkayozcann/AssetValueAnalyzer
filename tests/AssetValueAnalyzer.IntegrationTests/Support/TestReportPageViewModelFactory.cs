@@ -14,5 +14,9 @@ internal static class TestReportPageViewModelFactory
                 "Son senkronizasyon: 08.08.2026 12:00",
                 ExchangeRateTrend.Increased),
             [new ReportKpiViewModel("Rapor Ayı Varlık Tutarı", "₺1.100,00", "Ocak 2022 nominal tutarı", ReportKpiTone.Brand)],
-            []);
+            [],
+            new DateOnly(2021, 12, 1),
+            new DateOnly(2022, 1, 1),
+            new DateOnly(2021, 12, 1),
+            new DateOnly(2022, 1, 1));
 }
