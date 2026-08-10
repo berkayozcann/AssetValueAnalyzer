@@ -229,6 +229,7 @@ public sealed partial class WebApplicationSmokeTests(
         var reportResponse = await client.GetAsync("/reports");
         var reportHtml = await reportResponse.Content.ReadAsStringAsync();
         var decodedReportHtml = WebUtility.HtmlDecode(reportHtml);
+        var completedHomeHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
 
         Assert.Equal(HttpStatusCode.OK, assetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
@@ -240,6 +241,11 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("₺2.000.000,00", decodedReportHtml);
         Assert.Contains("aria-label=\"Başlangıç ayı: Aralık 2021\"", decodedReportHtml);
         Assert.Contains("aria-label=\"Bitiş ayı: Ocak 2022\"", decodedReportHtml);
+        Assert.Contains("class=\"primary-button inline-flex h-10", reportHtml);
+        Assert.Contains("data-new-analysis-action", reportHtml);
+        Assert.Contains("Finansal etki raporunuz hazır.", completedHomeHtml);
+        Assert.Contains("class=\"primary-button inline-flex h-11", completedHomeHtml);
+        Assert.Contains("data-new-analysis-action", completedHomeHtml);
         Assert.Equal(2, reportHtml.Split("data-report-row").Length - 1);
         Assert.Contains("md:sticky md:left-40 md:z-30", reportHtml);
         Assert.DoesNotContain("class=\"sticky left-40", reportHtml);

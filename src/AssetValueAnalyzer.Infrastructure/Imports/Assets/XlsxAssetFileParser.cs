@@ -1,3 +1,4 @@
+using System.Globalization;
 using AssetValueAnalyzer.Application.Assets.Imports;
 using ClosedXML.Excel;
 
@@ -5,9 +6,12 @@ namespace AssetValueAnalyzer.Infrastructure.Imports.Assets;
 
 public sealed class XlsxAssetFileParser : IAssetFileParser
 {
+    private const string ExpectedDateHeader = "TARİH";
+    private const string ExpectedAmountHeader = "VARLIK TUTARI";
     private const string InvalidTemplateCode = "InvalidAssetTemplate";
     private const string InvalidTemplateMessage =
         "Dosya beklenen Aylık Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
+    private static readonly CultureInfo TurkishCulture = CultureInfo.GetCultureInfo("tr-TR");
 
     public bool CanParse(string fileExtension) =>
         string.Equals(fileExtension, ".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -150,13 +154,13 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
 
             for (var rowNumber = 1; rowNumber <= lastRowNumber; rowNumber++)
             {
-                if (!HasAssetDataStart(candidate, rowNumber))
+                if (!HasExpectedHeaders(candidate, rowNumber))
                 {
                     continue;
                 }
 
                 worksheet = candidate;
-                firstDataRow = rowNumber;
+                firstDataRow = rowNumber + 1;
                 return true;
             }
         }
@@ -166,13 +170,14 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         return false;
     }
 
-    private static bool HasAssetDataStart(IXLWorksheet worksheet, int rowNumber)
-    {
-        var dateCell = worksheet.Cell(rowNumber, 1);
+    private static bool HasExpectedHeaders(IXLWorksheet worksheet, int rowNumber) =>
+        NormalizeHeader(worksheet.Cell(rowNumber, 1).GetString()) == ExpectedDateHeader &&
+        NormalizeHeader(worksheet.Cell(rowNumber, 2).GetString()) == ExpectedAmountHeader &&
+        !HasUnexpectedDataColumns(worksheet, rowNumber);
 
-        return IsExcelDateCell(dateCell) &&
-               dateCell.TryGetValue<DateTime>(out _);
-    }
+    private static string NormalizeHeader(string value) =>
+        string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .ToUpper(TurkishCulture);
 
     private static bool IsExcelDateCell(IXLCell cell)
     {

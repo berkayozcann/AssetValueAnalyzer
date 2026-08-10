@@ -37,9 +37,12 @@
 
     <div class="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:justify-end">
         <partial name="_ReportDateRangePanel" model="Model" />
-        <form class="w-full sm:w-40" asp-controller="Reports" asp-action="New" method="post">
-            <button type="submit" class="secondary-button inline-flex h-10 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-accent-300 hover:text-accent-300">
-                <span aria-hidden="true">＋</span> Yeni Analiz
+        <form class="w-full sm:w-44" asp-controller="Reports" asp-action="New" method="post">
+            <button type="submit"
+                    class="primary-button inline-flex h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold"
+                    data-new-analysis-action>
+                <span class="text-base leading-none" aria-hidden="true">＋</span>
+                Yeni Analiz
             </button>
         </form>
     </div>
