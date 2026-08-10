@@ -29,8 +29,10 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 - `WebApplicationFactory<Program>` ile gerçek host, routing, Razor, anti-forgery,
   multipart model binding ve session cookie smoke testleri.
 
-Henüz tamamlanmayan ana işler: temiz MSSQL kurulumu, Docker/çalıştırma yolu,
-CI ve son teslim kontrolleri.
+Zorunlu kapsam ve şartnamedeki EF Core Code First, ayrı API, Hangfire ve SignalR
+bonusları tamamlandı. Temiz MSSQL migration, Docker Compose, Release publish,
+secret/artifact taraması ve son teslim kontrolleri doğrulandı. GitHub Actions CI
+workflow'u isteğe bağlı bir sonraki iyileştirme olarak bırakıldı.
 
 ## Kullanılan teknolojiler
 
@@ -313,6 +315,9 @@ Web arayüzünden indirilebilen örnek veri dosyaları:
 - `src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx`
 - `src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx`
 
+Bu iki dosya, şirket eklerinin satır/sütun sözleşmesini koruyan sentetik
+veriler içerir; gerçek şirket ekleri repository'ye eklenmez.
+
 Şirketin 9 Ağustos 2026 tarihli yazılı açıklamasına göre şartnamedeki XML ifadesi
 hatalıdır. Kullanıcı yalnızca ekteki örneklerle aynı sabit format ve satır/sütun
 yapısındaki XLSX dosyalarını yükleyecektir.
@@ -342,8 +347,8 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `43/43`
-- Integration test: `91/91`
-- Toplam: `134/134`
+- Integration test: `92/92`
+- Toplam: `135/135`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
@@ -363,11 +368,12 @@ Dokuz ayrı API HTTP testi; DTO sözleşmesini, tek-gün/aralık filtrelerini, m
 binding davranışını ve
 `200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular. Gerçek
 API test hostu boş Finmaks anahtarıyla çalıştırılarak yalnız read-only MSSQL
-bağımlılıklarının kaydedildiği ayrıca doğrulanır. Gerçek
-MSSQL smoke kontrolü en güncel gün için 20 DTO, USD/TRY filtresi için tek kayıt
-ve bulunmayan tarih için `404 application/problem+json` üretmiştir. Tarihçe smoke
-kontrolü 8–9 Ağustos USD/TRY kayıtlarını iki sınır dahil ve yeniden eskiye sıralı
-döndürmüş; eksik bitiş tarihi SQL çalıştırılmadan `400` üretmiştir.
+bağımlılıklarının kaydedildiği ayrıca doğrulanır. MSSQL migration smoke
+kontrolü ayrı ve boş bir veritabanına initial migration'ı uygulamış;
+`ExchangeRates` tablosu ile unique currency-pair/date indexini oluşturmuş ve
+kontrol sonrası geçici veritabanını kaldırmıştır. Gerçek MSSQL'e bağlı API
+smoke kontrolü; en güncel USD/TRY sorgusunda tek DTO, Aralık 2021 aralık sorgusunda
+24 kayıt, geçersiz `limit` için `400` ve bulunmayan tarih için `404` üretmiştir.
 
 ## Bilinen kapsam sınırları
 

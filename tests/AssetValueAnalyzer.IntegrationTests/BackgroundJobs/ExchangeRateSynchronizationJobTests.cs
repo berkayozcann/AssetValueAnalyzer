@@ -2,7 +2,7 @@ using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Domain.ExchangeRates;
 using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace AssetValueAnalyzer.IntegrationTests.BackgroundJobs;
 
@@ -19,10 +19,11 @@ public sealed class ExchangeRateSynchronizationJobTests
             new FixedTimeProvider(
                 new DateTimeOffset(2026, 8, 9, 16, 30, 0, TimeSpan.Zero)));
         var notifier = new CapturingSynchronizationNotifier();
+        var logger = new CapturingLogger<ExchangeRateSynchronizationJob>();
         var job = new ExchangeRateSynchronizationJob(
             synchronizationService,
             notifier,
-            NullLogger<ExchangeRateSynchronizationJob>.Instance);
+            logger);
 
         await job.ExecuteAsync(CancellationToken.None);
 
@@ -31,6 +32,12 @@ public sealed class ExchangeRateSynchronizationJobTests
         Assert.Null(client.EndDate);
         Assert.Equal(1, store.CallCount);
         Assert.Equal(1, notifier.CallCount);
+        Assert.Contains(
+            logger.Messages,
+            message => message.Contains(
+                "Current-day exchange rates are not available yet; " +
+                "the next scheduled run will retry.",
+                StringComparison.Ordinal));
     }
 
     private sealed class CapturingFinmaksClient : IFinmaksExchangeRateClient
@@ -87,5 +94,23 @@ public sealed class ExchangeRateSynchronizationJobTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
     }
 }

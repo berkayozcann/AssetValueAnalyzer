@@ -6,7 +6,7 @@ namespace AssetValueAnalyzer.IntegrationTests.ProducerPriceIndices;
 public sealed class XlsxProducerPriceIndexFileParserTests
 {
     [Fact]
-    public async Task ParseAsync_WithPublishedSample_ReturnsExpectedCompanyValues()
+    public async Task ParseAsync_WithPublishedSample_ReturnsExpectedSyntheticValues()
     {
         var samplePath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -18,14 +18,14 @@ public sealed class XlsxProducerPriceIndexFileParserTests
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
         Assert.True(result.IsValid);
-        Assert.Equal(212, result.Values.Count);
-        Assert.Equal(new DateOnly(2006, 1, 1), result.Values[0].Month);
-        Assert.Equal(123.513548041274m, result.Values[0].Value);
+        Assert.Equal(21, result.Values.Count);
+        Assert.Equal(new DateOnly(2021, 12, 1), result.Values[0].Month);
+        Assert.Equal(1000m, result.Values[0].Value);
         Assert.Contains(result.Values, value =>
-            value.Month == new DateOnly(2021, 12, 1) &&
-            value.Value == 1022.25m);
+            value.Month == new DateOnly(2022, 12, 1) &&
+            value.Value == 1240m);
         Assert.Equal(new DateOnly(2023, 8, 1), result.Values[^1].Month);
-        Assert.Equal(2602.54m, result.Values[^1].Value);
+        Assert.Equal(1400m, result.Values[^1].Value);
     }
 
     [Fact]

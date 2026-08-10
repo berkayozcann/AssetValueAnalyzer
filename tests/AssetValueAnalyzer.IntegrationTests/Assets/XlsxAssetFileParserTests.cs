@@ -21,9 +21,9 @@ public sealed class XlsxAssetFileParserTests
         Assert.True(result.IsValid);
         Assert.Equal(21, result.Values.Count);
         Assert.Equal(new DateOnly(2021, 12, 1), result.Values[0].Month);
-        Assert.Equal(1_280_000m, result.Values[0].Amount);
+        Assert.Equal(1_000_000m, result.Values[0].Amount);
         Assert.Equal(new DateOnly(2023, 8, 1), result.Values[^1].Month);
-        Assert.Equal(2_080_000m, result.Values[^1].Amount);
+        Assert.Equal(1_500_000m, result.Values[^1].Amount);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class XlsxAssetFileParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_WithoutHeaders_ReturnsGenericTemplateError()
+    public async Task ParseAsync_WithoutHeaders_ReturnsFirstRowAsMonthlyValue()
     {
         await using var stream = CreateWorkbook(
             "İstediğim Sekme Adı",
@@ -111,9 +111,10 @@ public sealed class XlsxAssetFileParserTests
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
-        Assert.False(result.IsValid);
-        Assert.Empty(result.Values);
-        AssertInvalidAssetTemplate(result);
+        Assert.True(result.IsValid);
+        Assert.Equal(2, result.Values.Count);
+        Assert.Equal(new DateOnly(2021, 12, 1), result.Values[0].Month);
+        Assert.Equal(1_280_000m, result.Values[0].Amount);
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public sealed class XlsxAssetFileParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_WithArbitraryHeadersAndValidRows_ReturnsGenericTemplateError()
+    public async Task ParseAsync_WithArbitraryHeadersAndValidRows_ReturnsMonthlyValues()
     {
         await using var stream = new MemoryStream();
 
@@ -156,13 +157,14 @@ public sealed class XlsxAssetFileParserTests
 
         var result = await parser.ParseAsync(stream, CancellationToken.None);
 
-        Assert.False(result.IsValid);
-        Assert.Empty(result.Values);
-        AssertInvalidAssetTemplate(result);
+        Assert.True(result.IsValid);
+        var value = Assert.Single(result.Values);
+        Assert.Equal(new DateOnly(2021, 12, 1), value.Month);
+        Assert.Equal(1_280_000m, value.Amount);
     }
 
     [Fact]
-    public async Task ParseAsync_WithDateCellBeforeExpectedHeaders_ParsesOnlyRowsAfterHeaders()
+    public async Task ParseAsync_WithMultipleTextHeadingRows_SkipsUntilMonthlyDataStarts()
     {
         await using var stream = new MemoryStream();
 
@@ -170,9 +172,9 @@ public sealed class XlsxAssetFileParserTests
         {
             var worksheet = workbook.Worksheets.Add("Serbest Sekme Adı");
             worksheet.Cell(1, 1).Value = "Şirket Finansal Varlık Raporu";
-            worksheet.Cell(2, 1).Value = new DateTime(2026, 8, 7);
-            worksheet.Cell(3, 1).Value = "Tarih";
-            worksheet.Cell(3, 2).Value = "Varlık Tutarı";
+            worksheet.Cell(2, 1).Value = "Hazırlanma tarihi: 07.08.2026";
+            worksheet.Cell(3, 1).Value = "Ay";
+            worksheet.Cell(3, 2).Value = "Tutar";
             worksheet.Cell(4, 1).Value = new DateTime(2021, 12, 1);
             worksheet.Cell(4, 2).Value = 1_280_000m;
             worksheet.Cell(5, 1).Value = new DateTime(2022, 1, 1);
@@ -189,6 +191,35 @@ public sealed class XlsxAssetFileParserTests
         Assert.Equal(2, result.Values.Count);
         Assert.Equal(new DateOnly(2021, 12, 1), result.Values[0].Month);
         Assert.Equal(1_280_000m, result.Values[0].Amount);
+    }
+
+    [Fact]
+    public async Task ParseAsync_WithDateWithoutAmountBeforeValidData_ReturnsRowError()
+    {
+        await using var stream = new MemoryStream();
+
+        using (var workbook = new XLWorkbook())
+        {
+            var worksheet = workbook.Worksheets.Add("Serbest Sekme Adı");
+            worksheet.Cell(1, 1).Value = "Şirket Finansal Varlık Raporu";
+            worksheet.Cell(2, 1).Value = new DateTime(2021, 12, 1);
+            worksheet.Cell(3, 1).Value = new DateTime(2022, 1, 1);
+            worksheet.Cell(3, 2).Value = 1_320_000m;
+            workbook.SaveAs(stream);
+        }
+
+        stream.Position = 0;
+        var parser = new XlsxAssetFileParser();
+
+        var result = await parser.ParseAsync(stream, CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("InvalidAmount", error.Code);
+        Assert.Equal(2, error.RowNumber);
+        var value = Assert.Single(result.Values);
+        Assert.Equal(new DateOnly(2022, 1, 1), value.Month);
+        Assert.Equal(1_320_000m, value.Amount);
     }
 
     [Fact]

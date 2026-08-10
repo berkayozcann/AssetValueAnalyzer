@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using AssetValueAnalyzer.Application.Assets.Imports;
 using ClosedXML.Excel;
 
@@ -10,8 +8,6 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
     private const string InvalidTemplateCode = "InvalidAssetTemplate";
     private const string InvalidTemplateMessage =
         "Dosya beklenen Aylık Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
-    private const string ExpectedDateHeader = "tarih";
-    private const string ExpectedAmountHeader = "varliktutari";
 
     public bool CanParse(string fileExtension) =>
         string.Equals(fileExtension, ".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -36,12 +32,12 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         {
             using var workbook = new XLWorkbook(buffer);
 
-            if (!TryFindAssetWorksheet(workbook, out var worksheet, out var headerRow))
+            if (!TryFindAssetWorksheet(workbook, out var worksheet, out var firstDataRow))
             {
                 return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
             }
 
-            return ParseRows(worksheet, headerRow + 1);
+            return ParseRows(worksheet, firstDataRow);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -146,7 +142,7 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
     private static bool TryFindAssetWorksheet(
         XLWorkbook workbook,
         out IXLWorksheet worksheet,
-        out int headerRow)
+        out int firstDataRow)
     {
         foreach (var candidate in workbook.Worksheets)
         {
@@ -154,25 +150,29 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
 
             for (var rowNumber = 1; rowNumber <= lastRowNumber; rowNumber++)
             {
-                if (!HasExpectedHeaders(candidate, rowNumber))
+                if (!HasAssetDataStart(candidate, rowNumber))
                 {
                     continue;
                 }
 
                 worksheet = candidate;
-                headerRow = rowNumber;
+                firstDataRow = rowNumber;
                 return true;
             }
         }
 
         worksheet = null!;
-        headerRow = 0;
+        firstDataRow = 0;
         return false;
     }
 
-    private static bool HasExpectedHeaders(IXLWorksheet worksheet, int rowNumber) =>
-        Normalize(worksheet.Cell(rowNumber, 1).GetString()) == ExpectedDateHeader &&
-        Normalize(worksheet.Cell(rowNumber, 2).GetString()) == ExpectedAmountHeader;
+    private static bool HasAssetDataStart(IXLWorksheet worksheet, int rowNumber)
+    {
+        var dateCell = worksheet.Cell(rowNumber, 1);
+
+        return IsExcelDateCell(dateCell) &&
+               dateCell.TryGetValue<DateTime>(out _);
+    }
 
     private static bool IsExcelDateCell(IXLCell cell)
     {
@@ -247,29 +247,6 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         worksheet.Row(rowNumber)
             .CellsUsed()
             .Any(cell => cell.Address.ColumnNumber > 2 && !cell.IsEmpty());
-
-    private static string Normalize(string value)
-    {
-        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder(decomposed.Length);
-
-        foreach (var character in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            if (char.IsLetterOrDigit(character))
-            {
-                builder.Append(character == 'ı'
-                    ? 'i'
-                    : char.ToLowerInvariant(character));
-            }
-        }
-
-        return builder.ToString();
-    }
 
     private static bool HasZipSignature(MemoryStream stream)
     {
