@@ -102,6 +102,25 @@ public sealed partial class WebApplicationSmokeTests(
     }
 
     [Fact]
+    public async Task ExchangeRateCard_ClientCatchesUpAfterBackgroundTabResumes()
+    {
+        using var client = CreateClient();
+
+        var javascript = await client.GetStringAsync("/js/app.js");
+
+        Assert.Contains("connection.on(\"exchangeRatesSynchronized\"", javascript);
+        Assert.Contains("connection.onreconnected", javascript);
+        Assert.Contains("connection.onclose", javascript);
+        Assert.Contains("document.addEventListener(\"visibilitychange\"", javascript);
+        Assert.Contains("window.addEventListener(\"focus\"", javascript);
+        Assert.Contains("window.addEventListener(\"pageshow\"", javascript);
+        Assert.Contains("catchUpExchangeRateCard", javascript);
+        Assert.Contains("isPageUnloading = false;", javascript);
+        Assert.Contains("void refreshExchangeRateCard();", javascript);
+        Assert.Contains("void startConnection();", javascript);
+    }
+
+    [Fact]
     public async Task ReportPage_WithoutFiles_RendersEmptyFinancialImpactReportState()
     {
         using var client = CreateClient();

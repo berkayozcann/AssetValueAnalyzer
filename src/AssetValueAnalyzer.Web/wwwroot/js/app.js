@@ -6,35 +6,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let isPageUnloading = false;
     let retryTimeoutId = null;
+    let refreshPromise = null;
+    let startPromise = null;
 
     const refreshExchangeRateCard = async () => {
-      const currentCard = document.querySelector("[data-exchange-rate-card]");
-
-      if (!currentCard) {
+      if (refreshPromise) {
+        await refreshPromise;
         return;
       }
 
+      refreshPromise = (async () => {
+        const currentCard = document.querySelector("[data-exchange-rate-card]");
+
+        if (!currentCard) {
+          return;
+        }
+
+        try {
+          const response = await fetch(currentCard.dataset.refreshUrl, {
+            headers: { Accept: "text/html" },
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error(`Kur kartı yenilenemedi (${response.status}).`);
+          }
+
+          const template = document.createElement("template");
+          template.innerHTML = (await response.text()).trim();
+          const updatedCard = template.content.firstElementChild;
+
+          if (!updatedCard?.matches("[data-exchange-rate-card]")) {
+            throw new Error("Kur kartı cevabı beklenen HTML yapısında değil.");
+          }
+
+          currentCard.replaceWith(updatedCard);
+        } catch (error) {
+          console.warn("Kur kartı canlı olarak yenilenemedi.", error);
+        }
+      })();
+
       try {
-        const response = await fetch(currentCard.dataset.refreshUrl, {
-          headers: { Accept: "text/html" },
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error(`Kur kartı yenilenemedi (${response.status}).`);
-        }
-
-        const template = document.createElement("template");
-        template.innerHTML = (await response.text()).trim();
-        const updatedCard = template.content.firstElementChild;
-
-        if (!updatedCard?.matches("[data-exchange-rate-card]")) {
-          throw new Error("Kur kartı cevabı beklenen HTML yapısında değil.");
-        }
-
-        currentCard.replaceWith(updatedCard);
-      } catch (error) {
-        console.warn("Kur kartı canlı olarak yenilenemedi.", error);
+        await refreshPromise;
+      } finally {
+        refreshPromise = null;
       }
     };
 
@@ -48,23 +63,81 @@ document.addEventListener("DOMContentLoaded", () => {
       void refreshExchangeRateCard();
     });
 
-    const startConnection = async () => {
-      try {
-        await connection.start();
-      } catch (error) {
-        if (!isPageUnloading) {
-          console.warn("Kur güncelleme bağlantısı kurulamadı; tekrar denenecek.", error);
-          retryTimeoutId = window.setTimeout(startConnection, 5000);
-        }
+    const clearConnectionRetry = () => {
+      if (retryTimeoutId !== null) {
+        window.clearTimeout(retryTimeoutId);
+        retryTimeoutId = null;
       }
     };
 
+    const scheduleConnectionStart = () => {
+      if (isPageUnloading || retryTimeoutId !== null) {
+        return;
+      }
+
+      retryTimeoutId = window.setTimeout(() => {
+        retryTimeoutId = null;
+        void startConnection();
+      }, 5000);
+    };
+
+    const startConnection = async () => {
+      const disconnectedState = window.signalR.HubConnectionState?.Disconnected ?? "Disconnected";
+
+      if (isPageUnloading || startPromise || connection.state !== disconnectedState) {
+        return;
+      }
+
+      clearConnectionRetry();
+
+      try {
+        startPromise = connection.start();
+        await startPromise;
+        void refreshExchangeRateCard();
+      } catch (error) {
+        if (!isPageUnloading) {
+          console.warn("Kur güncelleme bağlantısı kurulamadı; tekrar denenecek.", error);
+          scheduleConnectionStart();
+        }
+      } finally {
+        startPromise = null;
+      }
+    };
+
+    const catchUpExchangeRateCard = () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      void refreshExchangeRateCard();
+      void startConnection();
+    };
+
+    connection.onreconnected(() => {
+      void refreshExchangeRateCard();
+    });
+
+    connection.onclose(() => {
+      scheduleConnectionStart();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        catchUpExchangeRateCard();
+      }
+    });
+
+    window.addEventListener("focus", catchUpExchangeRateCard);
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) {
+        isPageUnloading = false;
+        catchUpExchangeRateCard();
+      }
+    });
+
     window.addEventListener("beforeunload", () => {
       isPageUnloading = true;
-
-      if (retryTimeoutId !== null) {
-        window.clearTimeout(retryTimeoutId);
-      }
+      clearConnectionRetry();
 
       void connection.stop();
     }, { once: true });
