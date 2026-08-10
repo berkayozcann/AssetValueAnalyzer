@@ -56,7 +56,7 @@ public sealed class FinancialImpactReportRangeValidator(
             [
                 new(
                     "AtLeastTwoMonthsRequired",
-                    "Finansal değişim hesabı için seçilen aralıkta en az iki farklı varlık ayı bulunmalıdır.")
+                    "Rapor dönemi en az iki farklı varlık ayını içermelidir.")
             ]);
         }
 
@@ -76,7 +76,7 @@ public sealed class FinancialImpactReportRangeValidator(
             [
                 new(
                     "MissingProducerPriceIndex",
-                    $"Varlık tutarlarının bulunduğu her ay için ÜFE endeks verisi bulunmalıdır. Eksik aylar: {formattedMonths}.",
+                    $"Aylık Varlık Verisi bulunan her ay için Yİ-ÜFE Endeks Verisi bulunmalıdır. Eksik aylar: {formattedMonths}.",
                     missingIndexMonths[0])
             ]);
         }
@@ -105,7 +105,7 @@ public sealed class FinancialImpactReportRangeValidator(
         {
             errors.Add(new(
                 "MissingAssetValues",
-                "Rapor oluşturmak için geçerli bir varlık dosyası yüklenmelidir."));
+                "Finansal etki analizi oluşturmak için geçerli bir Aylık Varlık Verisi dosyası yüklenmelidir."));
             return errors;
         }
 
@@ -113,19 +113,19 @@ public sealed class FinancialImpactReportRangeValidator(
         {
             errors.Add(new(
                 "MissingProducerPriceIndices",
-                "Rapor oluşturmak için geçerli bir endeks dosyası yüklenmelidir."));
+                "Finansal etki analizi oluşturmak için geçerli bir Yİ-ÜFE Endeks Verisi dosyası yüklenmelidir."));
             return errors;
         }
 
         AddDuplicateMonthErrors(
             assetValues.Select(value => value.Month),
             "DuplicateAssetMonth",
-            "Varlık verisi",
+            "Aylık Varlık Verisi",
             errors);
         AddDuplicateMonthErrors(
             producerPriceIndices.Select(value => value.Month),
             "DuplicateProducerPriceIndexMonth",
-            "ÜFE endeks verisi",
+            "Yİ-ÜFE Endeks Verisi",
             errors);
 
         ValidateRequestedMonth(request.StartMonth, "Başlangıç", errors);
@@ -145,7 +145,7 @@ public sealed class FinancialImpactReportRangeValidator(
         {
             errors.Add(new(
                 "StartMonthNotFound",
-                $"Seçilen başlangıç ayı ({request.StartMonth:yyyy-MM}) varlık dosyasında bulunamadı.",
+                $"Seçilen başlangıç ayı ({request.StartMonth:yyyy-MM}) Aylık Varlık Verisi dosyasında bulunamadı.",
                 request.StartMonth));
         }
 
@@ -154,7 +154,7 @@ public sealed class FinancialImpactReportRangeValidator(
         {
             errors.Add(new(
                 "EndMonthNotFound",
-                $"Seçilen bitiş ayı ({request.EndMonth:yyyy-MM}) varlık dosyasında bulunamadı.",
+                $"Seçilen bitiş ayı ({request.EndMonth:yyyy-MM}) Aylık Varlık Verisi dosyasında bulunamadı.",
                 request.EndMonth));
         }
 

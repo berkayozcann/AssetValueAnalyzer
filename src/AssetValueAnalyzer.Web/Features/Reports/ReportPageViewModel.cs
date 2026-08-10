@@ -16,15 +16,8 @@ public sealed record ReportKpiViewModel(
     string Label,
     string Value,
     string Description,
-    ReportKpiTone Tone)
-{
-    public ReportKpiIcon Icon => Tone switch
-    {
-        ReportKpiTone.Positive => ReportKpiIcon.Growth,
-        ReportKpiTone.Negative => ReportKpiIcon.Decline,
-        _ => ReportKpiIcon.Wallet
-    };
-}
+    ReportKpiTone Tone,
+    ReportKpiIcon Icon);
 
 public enum ReportKpiTone
 {
@@ -35,9 +28,10 @@ public enum ReportKpiTone
 
 public enum ReportKpiIcon
 {
-    Wallet,
-    Growth,
-    Decline
+    AssetAmount,
+    NominalChange,
+    DollarizedChange,
+    InflationAdjustedChange
 }
 
 public sealed record ReportRowViewModel(

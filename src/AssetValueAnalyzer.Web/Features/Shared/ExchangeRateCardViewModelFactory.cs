@@ -13,9 +13,10 @@ public static class ExchangeRateCardViewModelFactory
         {
             return new(
                 FormattedRate: "—",
-                TrendText: "Karşılaştırma yok",
-                LastSyncText: "Henüz kur verisi bulunmuyor",
-                Trend: ExchangeRateTrend.Unavailable);
+                TrendText: "Karşılaştırma için önceki kur verisi bulunmuyor.",
+                LastSyncText: "Kur verisi henüz alınmadı.",
+                Trend: ExchangeRateTrend.Unavailable,
+                HasRate: false);
         }
 
         var trend = rate.PreviousValue switch
@@ -30,12 +31,12 @@ public static class ExchangeRateCardViewModelFactory
             FormattedRate: rate.Value.ToString("N4", TurkishCulture),
             TrendText: trend switch
             {
-                ExchangeRateTrend.Increased => "Artış",
-                ExchangeRateTrend.Decreased => "Azalış",
-                ExchangeRateTrend.Unchanged => "Değişmedi",
-                _ => "Karşılaştırma yok"
+                ExchangeRateTrend.Increased => "USD/TRY kuru bir önceki kur gününe göre yükseldi.",
+                ExchangeRateTrend.Decreased => "USD/TRY kuru bir önceki kur gününe göre düştü.",
+                ExchangeRateTrend.Unchanged => "USD/TRY kuru bir önceki kur gününe göre değişmedi.",
+                _ => "Karşılaştırma için önceki kur verisi bulunmuyor."
             },
-            LastSyncText: $"Son veri güncellemesi: {rate.RetrievedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}",
+            LastSyncText: $"Son kontrol · {rate.RetrievedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}",
             Trend: trend);
     }
 }

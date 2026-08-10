@@ -97,9 +97,9 @@ public sealed class ExchangeRateSynchronizationServiceTests
     {
         public IReadOnlyCollection<ExchangeRate> ExchangeRates { get; private set; } = [];
 
-        public Task<DateOnly?> GetLatestRateDateAsync(
+        public Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<DateOnly?>(null);
+            Task.FromResult(new ExchangeRateDateCoverage(null, null));
 
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,

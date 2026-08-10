@@ -9,7 +9,7 @@ namespace AssetValueAnalyzer.IntegrationTests.ExchangeRates;
 public sealed class EfExchangeRateStoreTests
 {
     [Fact]
-    public async Task GetLatestRateDateAsync_ReturnsTheMostRecentStoredDate()
+    public async Task GetDateCoverageAsync_ReturnsEarliestAndLatestStoredDates()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(CancellationToken.None);
@@ -35,9 +35,29 @@ public sealed class EfExchangeRateStoreTests
         await using var queryContext = new AssetValueAnalyzerDbContext(dbContextOptions);
         var store = new EfExchangeRateStore(queryContext);
 
-        var latestRateDate = await store.GetLatestRateDateAsync(CancellationToken.None);
+        var coverage = await store.GetDateCoverageAsync(CancellationToken.None);
 
-        Assert.Equal(new DateOnly(2026, 8, 7), latestRateDate);
+        Assert.Equal(new DateOnly(2026, 8, 5), coverage.EarliestRateDate);
+        Assert.Equal(new DateOnly(2026, 8, 7), coverage.LatestRateDate);
+    }
+
+    [Fact]
+    public async Task GetDateCoverageAsync_WithEmptyStore_ReturnsEmptyCoverage()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(CancellationToken.None);
+        var dbContextOptions = new DbContextOptionsBuilder<AssetValueAnalyzerDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var dbContext = new AssetValueAnalyzerDbContext(dbContextOptions);
+        await dbContext.Database.EnsureCreatedAsync(CancellationToken.None);
+        var store = new EfExchangeRateStore(dbContext);
+
+        var coverage = await store.GetDateCoverageAsync(CancellationToken.None);
+
+        Assert.Null(coverage.EarliestRateDate);
+        Assert.Null(coverage.LatestRateDate);
     }
 
     [Fact]

@@ -27,7 +27,7 @@ public sealed class ImportsController(
             return Conflict(AssetFileValidationResult.Invalid(
                 new AssetImportValidationError(
                     "CompletedReportLocked",
-                    "Yeni bir dosya yüklemek için önce yeni rapor oluşturma akışını başlatın.")));
+                    "Yeni bir dosya yüklemek için önce yeni analiz oluşturma akışını başlatın.")));
         }
 
         if (file is null)
@@ -35,7 +35,7 @@ public sealed class ImportsController(
             return UnprocessableEntity(AssetFileValidationResult.Invalid(
                 new AssetImportValidationError(
                     "MissingFile",
-                    "Lütfen bir varlık dosyası seçin.")));
+                    "Lütfen bir Aylık Varlık Verisi dosyası seçin.")));
         }
 
         await using var stream = file.OpenReadStream();
@@ -69,7 +69,7 @@ public sealed class ImportsController(
             return Conflict(ProducerPriceIndexFileValidationResult.Invalid(
                 new ProducerPriceIndexImportValidationError(
                     "CompletedReportLocked",
-                    "Yeni bir dosya yüklemek için önce yeni rapor oluşturma akışını başlatın.")));
+                    "Yeni bir dosya yüklemek için önce yeni analiz oluşturma akışını başlatın.")));
         }
 
         if (file is null)
@@ -77,7 +77,7 @@ public sealed class ImportsController(
             return UnprocessableEntity(ProducerPriceIndexFileValidationResult.Invalid(
                 new ProducerPriceIndexImportValidationError(
                     "MissingFile",
-                    "Lütfen bir endeks dosyası seçin.")));
+                    "Lütfen bir Yİ-ÜFE Endeks Verisi dosyası seçin.")));
         }
 
         await using var stream = file.OpenReadStream();

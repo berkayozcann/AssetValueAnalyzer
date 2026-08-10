@@ -23,6 +23,8 @@ public sealed class ReportsControllerTests
         var model = Assert.IsType<ReportWorkspacePageViewModel>(result.Model);
 
         Assert.Equal(ReportWorkspaceStatus.Empty, model.Status);
+        Assert.Equal(0, model.ReadyFileCount);
+        Assert.Equal(0, model.ReadyFileProgressPercent);
     }
 
     [Fact]
@@ -41,6 +43,29 @@ public sealed class ReportsControllerTests
         Assert.Equal("varlik.xlsx", model.AssetValues?.FileName);
         Assert.Equal("Aralık 2021 – Aralık 2021", model.AssetValues?.MonthRange);
         Assert.Null(model.ProducerPriceIndices);
+        Assert.Equal(1, model.ReadyFileCount);
+        Assert.Equal(50, model.ReadyFileProgressPercent);
+    }
+
+    [Fact]
+    public async Task Index_WithBothValidatedFiles_ReturnsFullDraftProgress()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "varlik.xlsx",
+            [new MonthlyAssetValueInput(new DateOnly(2021, 12, 1), 1_000_000m)]);
+        workspace.SaveProducerPriceIndices(
+            "yi-ufe.xlsx",
+            [new MonthlyProducerPriceIndexInput(new DateOnly(2021, 12, 1), 1_022.25m)]);
+        var controller = CreateController(workspace);
+
+        var result = Assert.IsType<ViewResult>(await controller.Index());
+        var model = Assert.IsType<ReportWorkspacePageViewModel>(result.Model);
+
+        Assert.Equal(ReportWorkspaceStatus.Draft, model.Status);
+        Assert.True(model.HasBothFiles);
+        Assert.Equal(2, model.ReadyFileCount);
+        Assert.Equal(100, model.ReadyFileProgressPercent);
     }
 
     [Fact]
@@ -93,7 +118,8 @@ public sealed class ReportsControllerTests
         Assert.Equal("₺1.100,00", report.Kpis[0].Value);
         Assert.Equal("+%10,00", report.Kpis[1].Value);
         Assert.Equal("47,2500", report.ExchangeRate.FormattedRate);
-        Assert.Equal("Güncel USD/TRY", report.ExchangeRate.Label);
+        Assert.Equal("USD / TRY", report.ExchangeRate.Label);
+        Assert.True(report.ExchangeRate.HasRate);
         Assert.True(Assert.IsType<bool>(controller.TempData["ResetReportWizard"]));
     }
 

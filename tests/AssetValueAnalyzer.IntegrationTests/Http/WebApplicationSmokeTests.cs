@@ -36,9 +36,48 @@ public sealed partial class WebApplicationSmokeTests(
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Yeni Rapor Oluştur", html);
+        Assert.Contains("Yeni Analiz Oluştur", html);
         Assert.NotEmpty(ReadAntiforgeryToken(html));
         Assert.Contains("/lib/signalr/signalr.min.js", html);
+    }
+
+    [Fact]
+    public async Task HomePage_DeclaresFixedLightPalette()
+    {
+        using var client = CreateClient();
+
+        var html = await client.GetStringAsync("/");
+        var css = await client.GetStringAsync("/css/app.css");
+
+        Assert.Contains("<meta name=\"color-scheme\" content=\"only light\"", html);
+        Assert.Contains("color-scheme:light only", css);
+        Assert.Contains("--color-canvas-950:#e7e5de", css);
+        Assert.Contains("--color-surface-900:#f4f2ec", css);
+        Assert.Contains("--color-surface-800:#fbfaf7", css);
+        Assert.Contains("--color-brand-400:#245c63", css);
+        Assert.Contains("--color-step-muted:#666e69", css);
+        Assert.Contains(".md\\:sticky{position:sticky}", css);
+    }
+
+    [Fact]
+    public async Task HomePage_UsesDistinctAccessibleNamesForUploadAndMonthControls()
+    {
+        using var client = CreateClient();
+
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
+        var javascript = await client.GetStringAsync("/js/app.js");
+
+        Assert.Contains("aria-label=\"Aylık Varlık Verisi dosyası seç\"", html);
+        Assert.Contains("aria-label=\"Yİ-ÜFE Endeks Verisi dosyası seç\"", html);
+        Assert.Contains("aria-label=\"Başlangıç ayı: Seçilmedi\"", html);
+        Assert.Contains("aria-label=\"Bitiş ayı: Seçilmedi\"", html);
+        Assert.Contains("updateMonthPickerAccessibleName", javascript);
+        Assert.True(
+            javascript.Split("updateMonthPickerAccessibleName(picker)").Length - 1 >= 5,
+            "Ay seçici erişilebilir adı; seçim, temizleme, ilk yükleme, geri yükleme ve sıfırlamada güncellenmelidir.");
+        Assert.Matches(
+            """if \(event\.key === "Escape"\) \{\s+hideInfoTooltips\(\);\s+closeMonthPickers\(\);""",
+            javascript);
     }
 
     [Fact]
@@ -52,8 +91,28 @@ public sealed partial class WebApplicationSmokeTests(
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("data-exchange-rate-card", html);
-        Assert.Contains("Henüz kur verisi bulunmuyor", decodedHtml);
+        Assert.Contains("data-rate-state=\"empty\"", html);
+        Assert.Contains("data-refresh-url=\"/exchange-rates/card\"", html);
+        Assert.Contains("USD / TRY", decodedHtml);
+        Assert.Contains("Veri yok", decodedHtml);
+        Assert.Contains("Kur verisi henüz alınmadı.", decodedHtml);
+        Assert.Equal(1, html.Split("data-exchange-rate-card").Length - 1);
         Assert.DoesNotContain("<!DOCTYPE html>", html);
+    }
+
+    [Fact]
+    public async Task ReportPage_WithoutFiles_RendersEmptyFinancialImpactReportState()
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync("/reports");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Finansal Etki Raporu", html);
+        Assert.Contains("Henüz rapor oluşturulmadı", html);
+        Assert.Contains("Yeni Analiz Oluştur", html);
+        Assert.DoesNotContain("data-ready-file-count", html);
     }
 
     [Fact]
@@ -121,12 +180,23 @@ public sealed partial class WebApplicationSmokeTests(
         var response = await client.PostAsync("/imports/assets/validate", content);
         var result = await response.Content.ReadFromJsonAsync<AssetUploadResponse>();
         var homeHtml = await client.GetStringAsync("/");
+        var reportHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/reports"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(result);
         Assert.True(result.IsValid);
         Assert.Equal(2, result.ParsedCount);
         Assert.Contains("smoke-assets.xlsx", homeHtml);
+        Assert.Contains("data-ready-file-count=\"1\"", reportHtml);
+        Assert.Contains("draft-file-list", reportHtml);
+        Assert.Contains("report-info-grid", reportHtml);
+        Assert.Contains("smoke-assets.xlsx", reportHtml);
+        Assert.Contains("Doğrulandı", reportHtml);
+        Assert.Contains("text-negative-400", reportHtml);
+        Assert.Contains("Eksik", reportHtml);
+        Assert.True(
+            reportHtml.IndexOf("Aylık Varlık Verisi", StringComparison.Ordinal) <
+            reportHtml.IndexOf("Yİ-ÜFE Endeks Verisi", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -165,10 +235,23 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Equal(HttpStatusCode.Redirect, createResponse.StatusCode);
         Assert.Equal("/reports", createResponse.Headers.Location?.OriginalString);
         Assert.Equal(HttpStatusCode.OK, reportResponse.StatusCode);
-        Assert.Contains("Finansal Etki Analizi Raporu", decodedReportHtml);
+        Assert.Contains("Finansal Etki Raporu", decodedReportHtml);
         Assert.Contains("Aralık 2021 – Ocak 2022", decodedReportHtml);
         Assert.Contains("₺2.000.000,00", decodedReportHtml);
+        Assert.Contains("aria-label=\"Başlangıç ayı: Aralık 2021\"", decodedReportHtml);
+        Assert.Contains("aria-label=\"Bitiş ayı: Ocak 2022\"", decodedReportHtml);
         Assert.Equal(2, reportHtml.Split("data-report-row").Length - 1);
+        Assert.Contains("md:sticky md:left-40 md:z-30", reportHtml);
+        Assert.DoesNotContain("class=\"sticky left-40", reportHtml);
+
+        var describedTooltipIds = TooltipDescriptionPattern()
+            .Matches(reportHtml)
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+
+        Assert.NotEmpty(describedTooltipIds);
+        Assert.Equal(describedTooltipIds.Length, describedTooltipIds.Distinct().Count());
+        Assert.All(describedTooltipIds, id => Assert.Contains($"id=\"{id}\"", reportHtml));
     }
 
     private HttpClient CreateClient() => factory.CreateClient(
@@ -263,6 +346,9 @@ public sealed partial class WebApplicationSmokeTests(
 
     [GeneratedRegex("name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"")]
     private static partial Regex AntiforgeryTokenPattern();
+
+    [GeneratedRegex("aria-describedby=\"(info-tooltip-[a-f0-9]{32})\"")]
+    private static partial Regex TooltipDescriptionPattern();
 
     private sealed record AssetUploadResponse(
         bool IsValid,

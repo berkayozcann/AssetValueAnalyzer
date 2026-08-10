@@ -7,13 +7,19 @@ namespace AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
 public sealed class EfExchangeRateStore(
     AssetValueAnalyzerDbContext dbContext) : IExchangeRateStore
 {
-    public Task<DateOnly?> GetLatestRateDateAsync(
-        CancellationToken cancellationToken = default) =>
-        dbContext.ExchangeRates
+    public async Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var coverage = await dbContext.ExchangeRates
             .AsNoTracking()
-            .OrderByDescending(rate => rate.RateDate)
-            .Select(rate => (DateOnly?)rate.RateDate)
-            .FirstOrDefaultAsync(cancellationToken);
+            .GroupBy(_ => 1)
+            .Select(group => new ExchangeRateDateCoverage(
+                group.Min(rate => rate.RateDate),
+                group.Max(rate => rate.RateDate)))
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return coverage ?? new ExchangeRateDateCoverage(null, null);
+    }
 
     public async Task<ExchangeRateUpsertResult> UpsertAsync(
         IReadOnlyCollection<ExchangeRate> exchangeRates,

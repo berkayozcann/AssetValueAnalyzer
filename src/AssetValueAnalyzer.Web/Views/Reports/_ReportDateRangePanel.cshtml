@@ -6,6 +6,8 @@
     var reportCreationError = TempData["ReportCreationError"] as string;
     var minimumMonth = Model.AvailableStartMonth.ToString("yyyy-MM");
     var maximumMonth = Model.AvailableEndMonth.ToString("yyyy-MM");
+    var formattedStartMonth = MonthDisplayFormatter.Format(Model.StartMonth);
+    var formattedEndMonth = MonthDisplayFormatter.Format(Model.EndMonth);
 }
 
 <div class="relative w-full sm:w-40"
@@ -21,7 +23,7 @@
             <rect x="3" y="5" width="18" height="16" rx="2"></rect>
             <path d="M8 3v4M16 3v4M3 10h18"></path>
         </svg>
-        Tarih Aralığı
+        Rapor Dönemi
         <svg class="h-3.5 w-3.5 transition" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-date-range-chevron>
             <path d="m6 9 6 6 6-6"></path>
         </svg>
@@ -36,13 +38,14 @@
               method="post"
               data-date-range-form>
             <div>
-                <h2 class="text-base font-semibold text-white">Rapor Tarih Aralığı</h2>
-                <p class="mt-1 text-xs text-slate-400">Raporu seçtiğiniz tarih aralığına göre yeniden hesaplayın.</p>
+                <h2 class="text-base font-semibold text-ink-900">Rapor Dönemi</h2>
+                <p class="mt-1 text-xs leading-relaxed text-slate-400">Finansal etki raporunu seçtiğiniz rapor dönemine göre yeniden hesaplayın.</p>
             </div>
 
             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                 <div class="relative"
                      data-month-picker
+                     data-month-picker-label="Başlangıç ayı"
                      data-min-month="@minimumMonth"
                      data-max-month="@maximumMonth"
                      data-completed-months-only="true">
@@ -51,8 +54,9 @@
                             class="field-card flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left"
                             aria-expanded="false"
                             aria-controls="report-start-month-picker"
+                            aria-label="Başlangıç ayı: @formattedStartMonth"
                             data-month-picker-toggle>
-                        <span class="text-sm font-medium text-white" data-month-picker-display>@MonthDisplayFormatter.Format(Model.StartMonth)</span>
+                        <span class="text-sm font-medium text-ink-900" data-month-picker-display>@formattedStartMonth</span>
                         <svg class="h-4 w-4 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                             <path d="M8 3v4M16 3v4M3 10h18"></path>
@@ -69,7 +73,7 @@
                              hidden>
                         <div class="flex items-center justify-between">
                             <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Önceki yıl" data-month-year-previous>←</button>
-                            <strong class="text-sm text-white" data-month-year></strong>
+                            <strong class="text-sm text-ink-900" data-month-year></strong>
                             <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Sonraki yıl" data-month-year-next>→</button>
                         </div>
                         <div class="mt-2 grid grid-cols-3 gap-1.5" data-month-grid></div>
@@ -78,6 +82,7 @@
 
                 <div class="relative"
                      data-month-picker
+                     data-month-picker-label="Bitiş ayı"
                      data-min-month="@minimumMonth"
                      data-max-month="@maximumMonth"
                      data-completed-months-only="true">
@@ -86,8 +91,9 @@
                             class="field-card flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left"
                             aria-expanded="false"
                             aria-controls="report-end-month-picker"
+                            aria-label="Bitiş ayı: @formattedEndMonth"
                             data-month-picker-toggle>
-                        <span class="text-sm font-medium text-white" data-month-picker-display>@MonthDisplayFormatter.Format(Model.EndMonth)</span>
+                        <span class="text-sm font-medium text-ink-900" data-month-picker-display>@formattedEndMonth</span>
                         <svg class="h-4 w-4 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                             <path d="M8 3v4M16 3v4M3 10h18"></path>
@@ -104,7 +110,7 @@
                              hidden>
                         <div class="flex items-center justify-between">
                             <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Önceki yıl" data-month-year-previous>←</button>
-                            <strong class="text-sm text-white" data-month-year></strong>
+                            <strong class="text-sm text-ink-900" data-month-year></strong>
                             <button type="button" class="secondary-button rounded-md px-2 py-1.5 text-sm" aria-label="Sonraki yıl" data-month-year-next>→</button>
                         </div>
                         <div class="mt-2 grid grid-cols-3 gap-1.5" data-month-grid></div>
@@ -124,9 +130,9 @@
                         class="secondary-button inline-flex h-9 w-24 items-center justify-center rounded-lg px-3 text-sm font-medium"
                         data-date-range-cancel>Vazgeç</button>
                 <button type="submit"
-                        class="primary-button inline-flex h-9 w-24 items-center justify-center rounded-lg px-3 text-sm font-semibold"
+                        class="primary-button inline-flex h-9 w-32 items-center justify-center rounded-lg px-3 text-sm font-semibold"
                         data-date-range-apply
-                        disabled>Uygula</button>
+                        disabled>Raporu Güncelle</button>
             </div>
         </form>
     </section>

@@ -3,7 +3,7 @@
 @model ReportPageViewModel
 
 @{
-    ViewData["Title"] = "Finansal Etki Analizi Raporu";
+    ViewData["Title"] = "Finansal Etki Raporu";
     ViewData["ActiveNavigation"] = "Reports";
     var resetReportWizard = TempData["ResetReportWizard"] is true;
 
@@ -23,9 +23,13 @@
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div class="max-w-3xl">
             <div class="flex flex-wrap items-center gap-4">
-                <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Finansal Etki Analizi Raporu</h1>
+                <h1 class="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">Finansal Etki Raporu</h1>
             </div>
-            <p class="mt-3 text-base muted-copy" data-report-period>@Model.Period</p>
+            <span class="mt-4 block h-1 w-16 rounded-full bg-brand-400" aria-hidden="true"></span>
+            <p class="mt-5 max-w-3xl text-base leading-relaxed muted-copy sm:text-lg">Seçilen rapor döneminde varlığınızın nominal değişimini, USD/TRY kuru karşısındaki performansını ve Yİ-ÜFE’ye göre reel değişimini karşılaştırın.</p>
+            <p class="mt-3 text-sm text-slate-400">
+                Rapor Dönemi · <strong class="font-medium text-slate-200" data-report-period>@Model.Period</strong>
+            </p>
         </div>
 
         <partial name="_ExchangeRateCard" model="Model.ExchangeRate" />
@@ -35,56 +39,56 @@
         <partial name="_ReportDateRangePanel" model="Model" />
         <form class="w-full sm:w-40" asp-controller="Reports" asp-action="New" method="post">
             <button type="submit" class="secondary-button inline-flex h-10 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-accent-300 hover:text-accent-300">
-                <span aria-hidden="true">＋</span> Yeni Rapor
+                <span aria-hidden="true">＋</span> Yeni Analiz
             </button>
         </form>
     </div>
 
-    <section class="mt-7 grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Rapor özeti">
+    <section class="mt-7 grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Finansal etki raporu özeti">
         @foreach (var kpi in Model.Kpis)
         {
             var valueClass = kpi.Tone switch
             {
                 ReportKpiTone.Positive => "text-positive-400",
                 ReportKpiTone.Negative => "text-negative-400",
-                _ => "text-white"
+                _ => "text-ink-900"
             };
-            var iconClass = kpi.Tone switch
-            {
-                ReportKpiTone.Positive => "bg-positive-400/10 text-positive-400",
-                ReportKpiTone.Negative => "bg-negative-400/10 text-negative-400",
-                _ => "bg-brand-500/15 text-brand-400"
-            };
-
             <article class="surface-card h-full min-h-40 rounded-xl px-5 py-5">
                 <div class="flex h-full items-start gap-4">
-                    <span class="@iconClass flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" aria-hidden="true">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-icon-line bg-icon-surface text-brand-400" aria-hidden="true">
                         @switch (kpi.Icon)
                         {
-                            case ReportKpiIcon.Wallet:
+                            case ReportKpiIcon.AssetAmount:
                                 <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18a2 2 0 0 1 2 2v1H7a3 3 0 0 0 0 6h13v3a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 16.5z"></path>
                                     <path d="M20 8v6h-3a3 3 0 0 1 0-6z"></path>
                                     <circle cx="17" cy="11" r=".75" fill="currentColor" stroke="none"></circle>
                                 </svg>
                                 break;
-                            case ReportKpiIcon.Growth:
-                                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <path d="M4 20V10m5 10v-6m5 6V8m5 12V4"></path>
-                                    <path d="m4 9 5-4 5 3 6-6m-5 0h5v5"></path>
+                            case ReportKpiIcon.NominalChange:
+                                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 5v14h16"></path>
+                                    <path d="m7 15 4-4 3 2 5-6"></path>
+                                    <path d="M15.5 7H19v3.5"></path>
                                 </svg>
                                 break;
-                            case ReportKpiIcon.Decline:
-                                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                                    <path d="m3 5 7 7 4-4 7 7"></path>
-                                    <path d="M16 15h5v-5"></path>
+                            case ReportKpiIcon.DollarizedChange:
+                                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M6.25 8A7 7 0 0 1 18 7M18 4v3h-3M17.75 16A7 7 0 0 1 6 17M6 20v-3h3"></path>
+                                    <path d="M12 8.5v7M14 10c-.45-.75-1.15-1.1-2.05-1.1-1.1 0-1.8.55-1.8 1.35 0 2.15 3.85 1.05 3.85 3.35 0 .9-.8 1.5-2 1.5-.95 0-1.7-.35-2.15-1.05"></path>
+                                </svg>
+                                break;
+                            case ReportKpiIcon.InflationAdjustedChange:
+                                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 3 19 6v5c0 4.5-2.75 7.9-7 10-4.25-2.1-7-5.5-7-10V6z"></path>
+                                    <path d="M9 15v-3M12 15V9M15 15v-5"></path>
                                 </svg>
                                 break;
                         }
                     </span>
                     <div class="min-w-0">
                         <p class="text-sm text-slate-200">@kpi.Label</p>
-                        <p class="@valueClass mt-2 text-2xl font-semibold tracking-tight tabular-nums">@kpi.Value</p>
+                        <p class="font-display @valueClass mt-2 text-2xl font-semibold tracking-tight tabular-nums">@kpi.Value</p>
                         <p class="mt-2 text-sm text-slate-400">@kpi.Description</p>
                     </div>
                 </div>
@@ -92,18 +96,18 @@
         }
     </section>
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-line-700 bg-surface-900/78" aria-labelledby="monthly-details-heading">
+    <section class="mt-5 overflow-hidden rounded-xl border border-line-700 bg-surface-900" aria-labelledby="monthly-details-heading">
         <div class="flex flex-wrap items-center gap-4 border-b border-line-700 px-5 py-3">
-            <h2 id="monthly-details-heading" class="text-xl font-semibold text-white">Aylık Detaylar</h2>
+            <h2 id="monthly-details-heading" class="text-xl font-semibold text-ink-900">Aylık Finansal Detaylar</h2>
             <p class="text-sm text-slate-400">@Model.Rows.Count ay</p>
         </div>
 
         <div class="data-table-scroll overflow-x-auto">
             <table class="min-w-[1900px] border-collapse text-sm tabular-nums">
-                <thead class="sticky top-0 z-20 bg-[#0b1730] text-left text-slate-200">
+                <thead class="sticky top-0 z-20 bg-surface-900 text-left text-ink-700">
                     <tr>
-                        <th scope="col" class="sticky left-0 z-30 w-40 min-w-40 border-b border-r border-line-700 bg-[#0b1730] px-5 py-3 text-left font-medium">Tarih</th>
-                        <th scope="col" class="sticky left-40 z-30 w-48 min-w-48 border-b border-r border-line-700 bg-[#0b1730] px-5 py-3 text-right font-medium">Varlık Tutarı</th>
+                        <th scope="col" class="sticky left-0 z-30 w-40 min-w-40 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-left font-medium">Tarih</th>
+                        <th scope="col" class="w-48 min-w-48 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-right font-medium md:sticky md:left-40 md:z-30">Varlık Tutarı</th>
                         <th scope="col" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
                             <span class="inline-flex items-center gap-2">Önceki Aya Göre Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Önceki Aya Göre Varlık Artışı", "Varlık tutarının bir önceki aya göre yüzde değişimidir."))</span>
                         </th>
@@ -126,10 +130,10 @@
                             <span class="inline-flex items-center gap-2">Dolarizasyon Etkisi (%) @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Etkisi", "Nominal tutarın kur etkisinden sonraki yüzde farkıdır."))</span>
                         </th>
                         <th scope="col" class="min-w-40 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">ÜFE Endeksi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("ÜFE Endeksi", "İlgili aya ait üretici fiyat endeksi puanıdır."))</span>
+                            <span class="inline-flex items-center gap-2">Yİ-ÜFE Endeksi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Yİ-ÜFE Endeksi", "İlgili aya ait yurt içi üretici fiyat endeksi puanıdır."))</span>
                         </th>
                         <th scope="col" class="min-w-56 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Varlık Tutarı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Varlık Tutarı", "Varlığın ÜFE değişimiyle rapor ayına taşınmış tutarıdır."))</span>
+                            <span class="inline-flex items-center gap-2">Enflasyon Varlık Tutarı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Varlık Tutarı", "Varlığın Yİ-ÜFE değişimiyle rapor ayına taşınmış tutarıdır."))</span>
                         </th>
                         <th scope="col" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
                             <span class="inline-flex items-center gap-2">Enflasyon Önceki Aya Göre Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Aylık Artışı", "Enflasyon tutarının bir önceki aya göre yüzde değişimidir."))</span>
@@ -138,7 +142,7 @@
                             <span class="inline-flex items-center gap-2">Enflasyon Varlık Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Değişim Oranı", "İlgili aydan rapor ayına kadar enflasyon tutarının yüzde değişimidir."))</span>
                         </th>
                         <th scope="col" class="min-w-44 border-b border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Etkisi (%) @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Etkisi", "Nominal tutarın ÜFE etkisinden sonraki yüzde farkıdır."))</span>
+                            <span class="inline-flex items-center gap-2">Enflasyon Etkisi (%) @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Etkisi", "Nominal tutarın Yİ-ÜFE etkisinden sonraki yüzde farkıdır."))</span>
                         </th>
                     </tr>
                 </thead>
@@ -147,8 +151,8 @@
                     {
                         var row = Model.Rows[rowIndex];
                         <tr class="transition hover:bg-brand-500/5" data-report-row>
-                            <th scope="row" class="sticky left-0 z-10 w-40 min-w-40 border-r border-line-700 bg-[#09152b] px-5 py-2.5 text-left font-medium text-white">@row.Month</th>
-                            <td class="sticky left-40 z-10 w-48 min-w-48 border-r border-line-700 bg-[#0d1b32] px-5 py-2.5 text-right font-medium text-white">@row.AssetValue</td>
+                            <th scope="row" class="sticky left-0 z-10 w-40 min-w-40 border-r border-line-700 bg-canvas-900 px-5 py-2.5 text-left font-medium text-ink-900">@row.Month</th>
+                            <td class="w-48 min-w-48 border-r border-line-700 bg-surface-900 px-5 py-2.5 text-right font-medium text-ink-900 md:sticky md:left-40 md:z-10">@row.AssetValue</td>
                             <td class="@ValueTone(row.MonthlyAssetIncreaseRate) border-r border-line-700 px-5 py-2.5 text-right">@row.MonthlyAssetIncreaseRate</td>
                             <td class="@ValueTone(row.AssetChangeRate) border-r border-line-700 px-5 py-2.5 text-right">@row.AssetChangeRate</td>
                             <td class="border-r border-line-700 px-5 py-2.5 text-right">@row.UsdRate</td>
@@ -170,7 +174,7 @@
         <footer class="flex flex-col gap-3 border-t border-line-700 px-5 py-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between"
                 data-report-pagination data-page-size="@pageSize">
             <p data-pagination-summary>1–@Math.Min(pageSize, Model.Rows.Count) / @Model.Rows.Count ay</p>
-            <nav class="flex items-center gap-2" aria-label="Aylık detay sayfaları">
+            <nav class="flex items-center gap-2" aria-label="Aylık finansal detay sayfaları">
                 <button type="button"
                         class="secondary-button rounded-lg px-3 py-2 disabled:cursor-not-allowed disabled:opacity-35"
                         aria-label="Önceki sayfa"

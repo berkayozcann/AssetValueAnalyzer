@@ -10,6 +10,12 @@ public sealed record ReportWorkspacePageViewModel(
 {
     public bool HasBothFiles => AssetValues is not null && ProducerPriceIndices is not null;
 
+    public int ReadyFileCount =>
+        (AssetValues is not null ? 1 : 0) +
+        (ProducerPriceIndices is not null ? 1 : 0);
+
+    public int ReadyFileProgressPercent => ReadyFileCount * 50;
+
     public static ReportWorkspacePageViewModel FromSnapshot(
         ReportWorkspaceSnapshot snapshot,
         ExchangeRateCardViewModel exchangeRate) =>
@@ -41,5 +47,12 @@ public sealed record ReportDataFileSummaryViewModel(
 }
 
 public sealed record DraftFileStatusViewModel(
+    DraftDataFileKind Kind,
     string Label,
     ReportDataFileSummaryViewModel? File);
+
+public enum DraftDataFileKind
+{
+    AssetValues,
+    ProducerPriceIndices
+}

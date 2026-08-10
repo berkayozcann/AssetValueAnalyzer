@@ -142,7 +142,7 @@ public sealed class FinancialImpactCalculator
             {
                 errors.Add(new(
                     "InvalidProducerPriceIndex",
-                    $"{period.Month:yyyy-MM} ayındaki ÜFE endeksi sıfırdan büyük olmalıdır.",
+                    $"{period.Month:yyyy-MM} ayındaki Yİ-ÜFE endeksi sıfırdan büyük olmalıdır.",
                     period.Month));
             }
         }

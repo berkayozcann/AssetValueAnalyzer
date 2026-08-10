@@ -3,39 +3,48 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#020817" />
+    <meta name="color-scheme" content="only light" />
+    <meta name="theme-color" content="#0d1514" />
     <title>@ViewData["Title"] - Varlık Analizi</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
 </head>
-<body class="antialiased selection:bg-brand-500/40 selection:text-white">
-    <header class="site-header border-b border-slate-700/45 backdrop-blur-xl">
+<body class="antialiased selection:bg-brand-400/25 selection:text-ink-900">
+    <header class="site-header border-b border-petrol-700">
         <nav class="app-shell flex min-h-20 items-center justify-between gap-6" aria-label="Ana navigasyon">
             <div class="flex min-w-0 items-center gap-7 sm:gap-12">
                 <a class="group flex shrink-0 items-center gap-3" asp-controller="Home" asp-action="Index" aria-label="Varlık Analizi ana sayfa">
-                    <span class="flex h-8 items-end gap-1" aria-hidden="true">
-                        <span class="h-4 w-1.5 rounded-sm bg-brand-400"></span>
-                        <span class="h-6 w-1.5 rounded-sm bg-brand-500"></span>
-                        <span class="h-8 w-1.5 rounded-sm bg-indigo-400"></span>
-                    </span>
-                    <span class="truncate text-lg font-semibold tracking-tight text-white sm:text-2xl">Varlık Analizi</span>
+                    <svg class="h-7 w-11 shrink-0" viewBox="0 0 44 28" fill="none" aria-hidden="true" focusable="false">
+                        <defs>
+                            <linearGradient id="va-brand-gradient" x1="3" y1="4" x2="41" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#83aaa1"></stop>
+                                <stop offset="1" stop-color="#83aaa1"></stop>
+                            </linearGradient>
+                        </defs>
+                        <path d="M3 4 13 24 27 4 41 24"
+                              stroke="url(#va-brand-gradient)"
+                              stroke-width="3"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"></path>
+                    </svg>
+                    <span class="font-display truncate text-lg font-semibold tracking-[-0.025em] text-on-petrol sm:text-2xl">Varlık Analizi</span>
                 </a>
 
                 <div class="flex h-20 items-stretch gap-5 sm:gap-9">
-                    <a class="relative flex items-center text-sm font-medium text-slate-300 transition hover:text-white sm:text-base"
+                    <a class="relative flex items-center text-sm font-medium transition sm:text-base @(ViewData["ActiveNavigation"] as string == "Home" ? "text-nav-active" : "text-petrol-300 hover:text-nav-active")"
                        asp-controller="Home" asp-action="Index">
                         Ana Sayfa
                         @if (ViewData["ActiveNavigation"] as string == "Home")
                         {
-                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-brand-400"></span>
+                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-petrol-400"></span>
                         }
                     </a>
-                    <a class="relative flex items-center text-sm font-medium text-slate-300 transition hover:text-white sm:text-base"
+                    <a class="relative flex items-center text-sm font-medium transition sm:text-base @(ViewData["ActiveNavigation"] as string == "Reports" ? "text-nav-active" : "text-petrol-300 hover:text-nav-active")"
                        asp-controller="Reports" asp-action="Index">
                         Finansal Etki Raporu
                         @if (ViewData["ActiveNavigation"] as string == "Reports")
                         {
-                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-brand-400"></span>
+                            <span class="absolute inset-x-0 bottom-0 h-0.5 bg-petrol-400"></span>
                         }
                     </a>
                 </div>

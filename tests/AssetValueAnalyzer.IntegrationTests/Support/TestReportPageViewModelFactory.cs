@@ -11,9 +11,14 @@ internal static class TestReportPageViewModelFactory
             new ExchangeRateCardViewModel(
                 "47,2500",
                 "Artış",
-                "Son senkronizasyon: 08.08.2026 12:00",
+                "Son kontrol · 08.08.2026 12:00",
                 ExchangeRateTrend.Increased),
-            [new ReportKpiViewModel("Rapor Ayı Varlık Tutarı", "₺1.100,00", "Ocak 2022 nominal tutarı", ReportKpiTone.Brand)],
+            [new ReportKpiViewModel(
+                "Rapor Ayı Varlık Tutarı",
+                "₺1.100,00",
+                "Ocak 2022 ayındaki nominal varlık tutarı.",
+                ReportKpiTone.Brand,
+                ReportKpiIcon.AssetAmount)],
             [],
             new DateOnly(2021, 12, 1),
             new DateOnly(2022, 1, 1),

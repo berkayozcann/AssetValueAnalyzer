@@ -117,7 +117,7 @@ execution kilidi kullanır; kalıcı idempotency güvencesi MSSQL unique indexid
 ### 3. Dosya yükleme ve session
 
 ```text
-POST Varlık/Endeks dosyası
+POST Aylık Varlık/Yİ-ÜFE dosyası
 → 5 MB sınırı ve desteklenen uzantı kontrolü
 → sabit şirket şablonuna uygun XLSX parser
 → ortak aylık normalize model ve validation
@@ -134,7 +134,7 @@ kalıcı olarak yalnız kur verileri bulunur.
 ```text
 POST /reports/create
 → session'daki iki veri setini oku
-→ tarih aralığını ve eksik ÜFE aylarını doğrula
+→ tarih aralığını ve eksik Yİ-ÜFE aylarını doğrula
 → her varlık ayı için ayın son hafta gününü bul
 → o tarihten en fazla 10 takvim günü gerideki USD/TRY CashChangeRate'i seç
 → 14 kolonlu finansal hesabı decimal ile yap
@@ -225,6 +225,10 @@ dotnet restore AssetValueAnalyzer.sln
 dotnet build AssetValueAnalyzer.sln --no-restore
 ```
 
+`assets:build` komutu; Tailwind CSS ve SignalR browser dosyasına ek olarak lisanslı
+Inter/Manrope variable fontlarını da `wwwroot` altına kopyalar. Böylece arayüz
+harici bir font CDN'ine ihtiyaç duymadan her makinede aynı tipografiyi kullanır.
+
 Migration'ı doğru MSSQL hedefini kontrol ettikten sonra uygulayın:
 
 ```bash
@@ -268,14 +272,14 @@ pnpm run css:watch
 
 ## Ekranlar ve HTTP işlemleri
 
-- `GET /`: Kur kartı, Varlık/Endeks yükleme kartları ve rapor tarih seçimi.
+- `GET /`: Kur kartı, Aylık Varlık Verisi/Yİ-ÜFE Endeks Verisi yükleme alanları ve finansal etki analizi akışı.
 - `GET /exchange-rates/card`: SignalR bildirimi sonrası yeniden okunan kur kartı partial'ı.
 - `/hubs/exchange-rates`: Yalnız senkronizasyon tamamlanma bildirimi taşıyan SignalR hub'ı.
 - `GET /reports`: Boş, taslak veya tamamlanmış rapor çalışma alanı.
 - `POST /imports/assets/validate`: Varlık XLSX doğrulaması.
 - `POST /imports/indices/validate`: Endeks XLSX doğrulaması.
-- `POST /reports/validate-range`: Tarih aralığı ve veri kapsaması doğrulaması.
-- `POST /reports/create`: Gerçek finansal rapor hesabı.
+- `POST /reports/validate-range`: Rapor dönemi ve veri kapsaması doğrulaması.
+- `POST /reports/create`: Finansal etki analizini hesaplayıp raporu oluşturma.
 - `GET /api/exchange-rates/latest`: Ayrı API hostundaki güncel kur listesi.
 - `GET /api/exchange-rates`: Ayrı API hostundaki tarih aralıklı kur listesi.
 
@@ -337,18 +341,19 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 
 Son doğrulanan durum:
 
-- Unit test: `41/41`
-- Integration test: `79/79`
-- Toplam: `120/120`
+- Unit test: `43/43`
+- Integration test: `91/91`
+- Toplam: `134/134`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
 mapping'ini, EF upsert davranışını, session/controller akışını, SignalR notifier/hub
-wiring'ini, son iş günü kur seçimini ve 14 kolonlu finansal hesabı kapsar. Yedi
-gerçek HTTP smoke testi;
+wiring'ini, eksik tarihsel kur kapsamının yeniden backfill edilmesini, son iş günü
+kur seçimini ve 14 kolonlu finansal hesabı kapsar. HTTP smoke testleri;
 ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
 başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
-Tam akış testi ayrıca iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
+İndirilebilir iki örneğin otomatik rapor döneminde birlikte çalışması ayrıca
+doğrulanır. Tam akış testi iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
 tablosuna kadar gerçek MVC pipeline'ını çalıştırır. Hangfire testleri; 3 dakikalık
 cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih aralığı
 vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri

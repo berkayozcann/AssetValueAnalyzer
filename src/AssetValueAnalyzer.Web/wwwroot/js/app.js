@@ -169,6 +169,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const monthPickers = [...document.querySelectorAll("[data-month-picker]")];
 
+  const updateMonthPickerAccessibleName = (picker) => {
+    const label = picker.dataset.monthPickerLabel;
+    const toggle = picker.querySelector("[data-month-picker-toggle]");
+    const display = picker.querySelector("[data-month-picker-display]");
+
+    if (label && toggle && display) {
+      toggle.setAttribute("aria-label", `${label}: ${display.textContent.trim()}`);
+    }
+  };
+
   const closeMonthPickers = (except = null) => {
     monthPickers.forEach((picker) => {
       if (picker === except) {
@@ -250,8 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
         button.className = "rounded-lg border px-2 py-2 text-sm transition";
         button.classList.add(
           isSelected ? "border-accent-300" : "border-line-700",
-          isSelected ? "bg-accent-300" : "bg-canvas-950/70",
-          isSelected ? "text-canvas-950" : "text-slate-200",
+          isSelected ? "bg-accent-300" : "bg-step-surface",
+          isSelected ? "text-paper-100" : "text-step-ink",
         );
 
         if (isDisabled) {
@@ -263,8 +273,9 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener("click", () => {
           input.value = value;
           display.textContent = formatMonth(value);
-          display.classList.add("text-white");
+          display.classList.add("text-ink-900");
           display.classList.remove("text-slate-400");
+          updateMonthPickerAccessibleName(picker);
           panel.hidden = true;
           toggle.setAttribute("aria-expanded", "false");
           input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -310,13 +321,15 @@ document.addEventListener("DOMContentLoaded", () => {
       input.value = "";
       display.textContent = "Seçilmedi";
       display.classList.add("text-slate-400");
-      display.classList.remove("text-white");
+      display.classList.remove("text-ink-900");
+      updateMonthPickerAccessibleName(picker);
       panel.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
       input.dispatchEvent(new Event("change", { bubbles: true }));
       toggle.focus();
     });
 
+    updateMonthPickerAccessibleName(picker);
     renderMonths();
   });
 
@@ -328,6 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      hideInfoTooltips();
       closeMonthPickers();
     }
   });
@@ -402,7 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (start.value === end.value) {
-        return "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
+        return "Rapor dönemi en az iki farklı varlık ayını içermelidir.";
       }
 
       if (start.value > end.value) {
@@ -449,7 +463,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!response.ok || !result.isValid) {
           setApplyState(false);
-          setError(result.errors?.[0]?.message ?? "Seçilen tarih aralığı doğrulanamadı.");
+          setError(result.errors?.[0]?.message ?? "Seçilen rapor dönemi doğrulanamadı.");
           return false;
         }
 
@@ -462,7 +476,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setApplyState(false);
-        setError("Tarih aralığı kontrol servisine ulaşılamadı.");
+        setError("Rapor dönemi şu anda doğrulanamadı. Lütfen yeniden deneyin.");
         return false;
       }
     };
@@ -539,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const isCurrent = Number(button.dataset.pageNumber) === currentPage;
         button.setAttribute("aria-current", isCurrent ? "page" : "false");
         button.classList.toggle("bg-brand-500", isCurrent);
-        button.classList.toggle("text-white", isCurrent);
+        button.classList.toggle("text-paper-100", isCurrent);
         button.classList.toggle("border-brand-400", isCurrent);
       });
     };
@@ -645,8 +659,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (display) {
       display.textContent = formatMonth(storedValue);
-      display.classList.add("text-white");
+      display.classList.add("text-ink-900");
       display.classList.remove("text-slate-400");
+      updateMonthPickerAccessibleName(picker);
     }
   };
 
@@ -659,7 +674,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const endMonth = endMonthInput.value || state.assetLastMonth;
 
     if (startMonth && endMonth && startMonth === endMonth) {
-      return "Finansal değişimi hesaplamak için en az iki farklı ay seçilmelidir.";
+      return "Rapor dönemi en az iki farklı varlık ayını içermelidir.";
     }
 
     if (startMonth && endMonth && startMonth > endMonth) {
@@ -727,7 +742,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!response.ok || !result.isValid) {
         state.rangeValidationState = "invalid";
         state.includedMonthCount = null;
-        setRangeError(result.errors?.[0]?.message ?? "Seçilen tarih aralığı doğrulanamadı.");
+        setRangeError(result.errors?.[0]?.message ?? "Seçilen rapor dönemi doğrulanamadı.");
         updateRangeContinueState();
         return false;
       }
@@ -744,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       state.rangeValidationState = "invalid";
       state.includedMonthCount = null;
-      setRangeError("Tarih aralığı kontrol servisine ulaşılamadı.");
+      setRangeError("Rapor dönemi şu anda doğrulanamadı. Lütfen yeniden deneyin.");
       updateRangeContinueState();
       return false;
     }
@@ -762,7 +777,8 @@ document.addEventListener("DOMContentLoaded", () => {
       input.value = "";
       display.textContent = "Seçilmedi";
       display.classList.add("text-slate-400");
-      display.classList.remove("text-white");
+      display.classList.remove("text-ink-900");
+      updateMonthPickerAccessibleName(picker);
     });
 
     state.rangeValidationRequestId++;
@@ -805,14 +821,16 @@ document.addEventListener("DOMContentLoaded", () => {
       "text-positive-400",
       "border-positive-400/45",
       "text-negative-400",
+      "border-negative-400/45",
+      "border-step-border",
     );
 
     if (tone === "positive") {
       status.classList.add("text-positive-400", "border-positive-400/45");
     } else if (tone === "negative") {
-      status.classList.add("text-negative-400", "border-slate-600");
+      status.classList.add("text-negative-400", "border-negative-400/45");
     } else {
-      status.classList.add("text-slate-400", "border-slate-600");
+      status.classList.add("text-slate-400", "border-step-border");
     }
   };
 
@@ -871,7 +889,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.assetValidationState = "validating";
     setStatus(status, "Doğrulanıyor…", "neutral");
-    setValidationMessage(validation, "Dosya yapısı ve aylık değerler kontrol ediliyor.");
+    setValidationMessage(validation, "Aylık Varlık Verisi dosyasının yapısı ve tutarları kontrol ediliyor.");
     updateContinueState();
 
     try {
@@ -886,9 +904,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!response.ok || !result.isValid) {
-        const message = result.errors?.[0]?.message ?? "Varlık dosyası doğrulanamadı.";
+        const message = result.errors?.[0]?.message ?? "Aylık Varlık Verisi dosyası doğrulanamadı.";
         state.assetValidationState = "invalid";
-        setStatus(status, "Hatalı", "negative");
+        setStatus(status, "Doğrulanamadı", "negative");
         setValidationMessage(validation, message, "negative");
         setClearButtonVisibility(row, false);
         updateContinueState();
@@ -912,10 +930,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       state.assetValidationState = "invalid";
-      setStatus(status, "Hatalı", "negative");
+      setStatus(status, "Doğrulanamadı", "negative");
       setValidationMessage(
         validation,
-        "Dosya doğrulama servisine ulaşılamadı. Uygulamanın çalıştığını kontrol edin.",
+        "Aylık Varlık Verisi dosyası şu anda doğrulanamadı. Lütfen yeniden deneyin.",
         "negative",
       );
     }
@@ -935,7 +953,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.indexValidationState = "validating";
     setStatus(status, "Doğrulanıyor…", "neutral");
-    setValidationMessage(validation, "Yıl-ay matrisi ve endeks değerleri kontrol ediliyor.");
+    setValidationMessage(validation, "Yİ-ÜFE Endeks Verisi dosyasının yıl-ay matrisi ve değerleri kontrol ediliyor.");
     updateContinueState();
 
     try {
@@ -950,9 +968,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!response.ok || !result.isValid) {
-        const message = result.errors?.[0]?.message ?? "Endeks dosyası doğrulanamadı.";
+        const message = result.errors?.[0]?.message ?? "Yİ-ÜFE Endeks Verisi dosyası doğrulanamadı.";
         state.indexValidationState = "invalid";
-        setStatus(status, "Hatalı", "negative");
+        setStatus(status, "Doğrulanamadı", "negative");
         setValidationMessage(validation, message, "negative");
         setClearButtonVisibility(row, false);
         updateContinueState();
@@ -977,10 +995,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       state.indexValidationState = "invalid";
-      setStatus(status, "Hatalı", "negative");
+      setStatus(status, "Doğrulanamadı", "negative");
       setValidationMessage(
         validation,
-        "Dosya doğrulama servisine ulaşılamadı. Uygulamanın çalıştığını kontrol edin.",
+        "Yİ-ÜFE Endeks Verisi dosyası şu anda doğrulanamadı. Lütfen yeniden deneyin.",
         "negative",
       );
     }
@@ -1007,7 +1025,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       name.textContent = file.name;
       name.classList.remove("text-slate-400");
-      name.classList.add("text-white");
+      name.classList.add("text-ink-900");
 
       if (kind === "assetFile") {
         state.assetFirstMonth = null;
@@ -1022,7 +1040,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       name.textContent = "Henüz dosya seçilmedi";
       name.classList.add("text-slate-400");
-      name.classList.remove("text-white");
+      name.classList.remove("text-ink-900");
       status.hidden = true;
       status.classList.add("hidden");
       setClearButtonVisibility(row, false);
@@ -1060,18 +1078,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       circle.className = "flex h-10 w-10 items-center justify-center rounded-full border font-semibold";
       circle.classList.add(
-        isActive || isComplete ? "border-accent-300" : "border-slate-600",
-        isActive ? "bg-accent-300" : isComplete ? "bg-accent-300/10" : "bg-slate-700/70",
-        isActive ? "text-canvas-950" : isComplete ? "text-accent-300" : "text-slate-200",
+        isActive || isComplete ? "border-accent-300" : "border-step-border",
+        isActive ? "bg-accent-300" : isComplete ? "bg-icon-surface" : "bg-step-surface",
+        isActive ? "text-paper-100" : isComplete ? "text-accent-300" : "text-step-ink",
       );
-      label.classList.toggle("text-white", markerStep <= state.step);
-      label.classList.toggle("text-slate-400", markerStep > state.step);
+      label.classList.toggle("text-ink-900", markerStep <= state.step);
+      label.classList.toggle("text-step-muted", markerStep > state.step);
     });
 
     connectors.forEach((connector) => {
       const isComplete = Number(connector.dataset.stepConnector) < state.step;
       connector.classList.toggle("bg-accent-300", isComplete);
-      connector.classList.toggle("bg-slate-600/70", !isComplete);
+      connector.classList.toggle("bg-line-600", !isComplete);
     });
   };
 
@@ -1083,11 +1101,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let automaticNote = "";
 
     if (!selectedStart && !selectedEnd) {
-      automaticNote = "Dosyanın ilk ve son ayı kullanıldı.";
+      automaticNote = "Rapor dönemi dosyanın ilk ve son ayına göre belirlendi.";
     } else if (!selectedStart) {
-      automaticNote = "Başlangıç için dosyanın ilk ayı kullanıldı.";
+      automaticNote = "Başlangıç ayı dosyadan otomatik belirlendi.";
     } else if (!selectedEnd) {
-      automaticNote = "Bitiş için dosyanın son ayı kullanıldı.";
+      automaticNote = "Bitiş ayı dosyadan otomatik belirlendi.";
     }
 
     wizard.querySelector("[data-summary-period]").textContent =
@@ -1165,7 +1183,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         name.textContent = "Henüz dosya seçilmedi";
         name.classList.add("text-slate-400");
-        name.classList.remove("text-white");
+        name.classList.remove("text-ink-900");
         status.hidden = true;
         status.classList.add("hidden");
         setValidationMessage(validation, "");

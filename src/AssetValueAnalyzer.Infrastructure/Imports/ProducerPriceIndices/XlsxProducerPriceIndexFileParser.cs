@@ -10,7 +10,7 @@ public sealed class XlsxProducerPriceIndexFileParser
 {
     private const string InvalidTemplateCode = "InvalidProducerPriceIndexTemplate";
     private const string InvalidTemplateMessage =
-        "Dosya beklenen Endeks Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
+        "Dosya beklenen Yİ-ÜFE Endeks Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
 
     private static readonly string[] YearAliases = ["yil", "year"];
 
@@ -103,7 +103,7 @@ public sealed class XlsxProducerPriceIndexFileParser
             {
                 errors.Add(new(
                     "UnexpectedColumns",
-                    "Endeks veri satırları yıl ve Ocak-Aralık ay kolonları dışında veri içermemelidir.",
+                    "Yİ-ÜFE Endeks Verisi satırları yıl ve Ocak-Aralık ay kolonları dışında veri içermemelidir.",
                     rowNumber));
                 continue;
             }
@@ -124,7 +124,7 @@ public sealed class XlsxProducerPriceIndexFileParser
                 {
                     errors.Add(new(
                         "InvalidIndexValue",
-                        $"{month:yyyy-MM} endeks değeri sayısal olmalıdır.",
+                        $"{month:yyyy-MM} Yİ-ÜFE endeks değeri sayısal olmalıdır.",
                         rowNumber,
                         columnNumber));
                     continue;
@@ -134,7 +134,7 @@ public sealed class XlsxProducerPriceIndexFileParser
                 {
                     errors.Add(new(
                         "NonPositiveIndexValue",
-                        $"{month:yyyy-MM} endeks değeri sıfırdan büyük olmalıdır.",
+                        $"{month:yyyy-MM} Yİ-ÜFE endeks değeri sıfırdan büyük olmalıdır.",
                         rowNumber,
                         columnNumber));
                     continue;
@@ -158,7 +158,7 @@ public sealed class XlsxProducerPriceIndexFileParser
         {
             errors.Add(new(
                 "NoDataRows",
-                "Endeks dosyasında işlenebilecek aylık veri bulunamadı."));
+                "Yİ-ÜFE Endeks Verisi dosyasında işlenebilecek aylık veri bulunamadı."));
         }
 
         return new ProducerPriceIndexFileParseResult(

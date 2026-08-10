@@ -52,7 +52,7 @@ public sealed class ReportPageViewModelFactoryTests
         var currentRate = new ExchangeRateCardViewModel(
             "47,5000",
             "Artış",
-            "Son senkronizasyon: 08.08.2026 12:00",
+            "Son kontrol · 08.08.2026 12:00",
             ExchangeRateTrend.Increased);
         var viewModel = ReportPageViewModelFactory.Create(
             report,
@@ -65,6 +65,39 @@ public sealed class ReportPageViewModelFactoryTests
         Assert.Equal("+%10,05", viewModel.Kpis[1].Value);
         Assert.Equal("-%12,50", viewModel.Kpis[2].Value);
         Assert.Equal("%0,00", viewModel.Kpis[3].Value);
+        Assert.Equal(
+            [
+                "Rapor Ayı Varlık Tutarı",
+                "Nominal Değişim",
+                "Dolar Bazlı Değişim",
+                "Yİ-ÜFE’ye Göre Reel Değişim"
+            ],
+            viewModel.Kpis.Select(kpi => kpi.Label));
+        Assert.Equal(
+            [
+                ReportKpiIcon.AssetAmount,
+                ReportKpiIcon.NominalChange,
+                ReportKpiIcon.DollarizedChange,
+                ReportKpiIcon.InflationAdjustedChange
+            ],
+            viewModel.Kpis.Select(kpi => kpi.Icon));
+        Assert.Equal(
+            [
+                ReportKpiTone.Brand,
+                ReportKpiTone.Positive,
+                ReportKpiTone.Negative,
+                ReportKpiTone.Brand
+            ],
+            viewModel.Kpis.Select(kpi => kpi.Tone));
+        Assert.Equal(
+            "Rapor döneminin ilk ayından rapor ayına TL bazındaki değişim.",
+            viewModel.Kpis[1].Description);
+        Assert.Equal(
+            "Varlığın USD karşılığının rapor döneminin ilk ayından rapor ayına değişimi.",
+            viewModel.Kpis[2].Description);
+        Assert.Equal(
+            "Varlığın rapor dönemindeki Yİ-ÜFE etkisinden arındırılmış değişimi.",
+            viewModel.Kpis[3].Description);
         Assert.Equal("—", viewModel.Rows[0].MonthlyAssetIncreaseRate);
         Assert.Equal("+%10,05", viewModel.Rows[1].MonthlyAssetIncreaseRate);
         Assert.Equal("47,5000", viewModel.ExchangeRate.FormattedRate);
@@ -123,7 +156,7 @@ public sealed class ReportPageViewModelFactoryTests
             new ExchangeRateCardViewModel(
                 "47,5000",
                 "Değişmedi",
-                "Son senkronizasyon: 08.08.2026 12:00",
+                "Son kontrol · 08.08.2026 12:00",
                 ExchangeRateTrend.Unchanged),
             new DateOnly(2023, 1, 1),
             new DateOnly(2023, 3, 1));

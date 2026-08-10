@@ -16,12 +16,12 @@ public sealed class ReadAssetValuesService(IEnumerable<IAssetFileParser> parsers
 
         if (fileSize <= 0)
         {
-            return Invalid("EmptyFile", "Varlık dosyası boş olamaz.");
+            return Invalid("EmptyFile", "Aylık Varlık Verisi dosyası boş olamaz.");
         }
 
         if (fileSize > MaxFileSize)
         {
-            return Invalid("FileTooLarge", "Varlık dosyası en fazla 5 MB olabilir.");
+            return Invalid("FileTooLarge", "Aylık Varlık Verisi dosyası en fazla 5 MB olabilir.");
         }
 
         var extension = Path.GetExtension(fileName);
@@ -31,7 +31,7 @@ public sealed class ReadAssetValuesService(IEnumerable<IAssetFileParser> parsers
         {
             return Invalid(
                 "UnsupportedFormat",
-                "Varlık dosyası XLSX formatında olmalıdır.");
+                "Aylık Varlık Verisi dosyası XLSX formatında olmalıdır.");
         }
 
         var result = await parser.ParseAsync(stream, cancellationToken);
@@ -40,7 +40,7 @@ public sealed class ReadAssetValuesService(IEnumerable<IAssetFileParser> parsers
         {
             return Invalid(
                 "NoDataRows",
-                "Varlık dosyasında işlenecek veri satırı bulunamadı.");
+                "Aylık Varlık Verisi dosyasında işlenecek veri satırı bulunamadı.");
         }
 
         return result;

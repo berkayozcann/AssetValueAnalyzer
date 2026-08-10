@@ -17,12 +17,12 @@ public sealed class ReadProducerPriceIndicesService(
 
         if (fileSize <= 0)
         {
-            return Invalid("EmptyFile", "Endeks dosyası boş olamaz.");
+            return Invalid("EmptyFile", "Yİ-ÜFE Endeks Verisi dosyası boş olamaz.");
         }
 
         if (fileSize > MaxFileSize)
         {
-            return Invalid("FileTooLarge", "Endeks dosyası en fazla 5 MB olabilir.");
+            return Invalid("FileTooLarge", "Yİ-ÜFE Endeks Verisi dosyası en fazla 5 MB olabilir.");
         }
 
         var extension = Path.GetExtension(fileName);
@@ -32,7 +32,7 @@ public sealed class ReadProducerPriceIndicesService(
         {
             return Invalid(
                 "UnsupportedFormat",
-                "Endeks dosyası XLSX formatında olmalıdır.");
+                "Yİ-ÜFE Endeks Verisi dosyası XLSX formatında olmalıdır.");
         }
 
         var result = await parser.ParseAsync(stream, cancellationToken);
@@ -41,7 +41,7 @@ public sealed class ReadProducerPriceIndicesService(
         {
             return Invalid(
                 "NoDataRows",
-                "Endeks dosyasında işlenecek veri bulunamadı.");
+                "Yİ-ÜFE Endeks Verisi dosyasında işlenecek veri bulunamadı.");
         }
 
         return result;

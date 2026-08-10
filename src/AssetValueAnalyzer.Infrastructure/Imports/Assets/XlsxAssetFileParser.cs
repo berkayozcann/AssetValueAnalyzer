@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using AssetValueAnalyzer.Application.Assets.Imports;
 using ClosedXML.Excel;
 
@@ -7,7 +9,9 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
 {
     private const string InvalidTemplateCode = "InvalidAssetTemplate";
     private const string InvalidTemplateMessage =
-        "Dosya beklenen Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
+        "Dosya beklenen Aylık Varlık Verisi şablonuna uygun değildir. Lütfen örnek dosyayı kontrol edip yeniden deneyin.";
+    private const string ExpectedDateHeader = "tarih";
+    private const string ExpectedAmountHeader = "varliktutari";
 
     public bool CanParse(string fileExtension) =>
         string.Equals(fileExtension, ".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -32,12 +36,12 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         {
             using var workbook = new XLWorkbook(buffer);
 
-            if (!TryFindAssetWorksheet(workbook, out var worksheet, out var firstDataRow))
+            if (!TryFindAssetWorksheet(workbook, out var worksheet, out var headerRow))
             {
                 return Invalid(InvalidTemplateCode, InvalidTemplateMessage);
             }
 
-            return ParseRows(worksheet, firstDataRow);
+            return ParseRows(worksheet, headerRow + 1);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -67,7 +71,7 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
             {
                 errors.Add(new(
                     "UnexpectedColumns",
-                    "Varlık dosyasında veri satırları yalnızca ay ve varlık tutarı olmak üzere iki kolon içermelidir.",
+                    "Aylık Varlık Verisi dosyasındaki satırlar yalnızca ay ve varlık tutarı olmak üzere iki kolon içermelidir.",
                     rowNumber));
                 continue;
             }
@@ -93,7 +97,7 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
             {
                 errors.Add(new(
                     "MonthOutOfRange",
-                    "Varlık verisi Aralık 2021 veya sonrasına ait olmalıdır.",
+                    "Aylık Varlık Verisi Aralık 2021 veya sonrasına ait olmalıdır.",
                     rowNumber));
                 continue;
             }
@@ -133,7 +137,7 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         {
             errors.Add(new(
                 "NoDataRows",
-                "Varlık dosyasında işlenecek veri satırı bulunamadı."));
+                "Aylık Varlık Verisi dosyasında işlenecek veri satırı bulunamadı."));
         }
 
         return new AssetFileParseResult(values, errors);
@@ -142,7 +146,7 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
     private static bool TryFindAssetWorksheet(
         XLWorkbook workbook,
         out IXLWorksheet worksheet,
-        out int firstDataRow)
+        out int headerRow)
     {
         foreach (var candidate in workbook.Worksheets)
         {
@@ -150,29 +154,25 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
 
             for (var rowNumber = 1; rowNumber <= lastRowNumber; rowNumber++)
             {
-                if (!HasAssetDataStart(candidate, rowNumber))
+                if (!HasExpectedHeaders(candidate, rowNumber))
                 {
                     continue;
                 }
 
                 worksheet = candidate;
-                firstDataRow = rowNumber;
+                headerRow = rowNumber;
                 return true;
             }
         }
 
         worksheet = null!;
-        firstDataRow = 0;
+        headerRow = 0;
         return false;
     }
 
-    private static bool HasAssetDataStart(IXLWorksheet worksheet, int rowNumber)
-    {
-        var dateCell = worksheet.Cell(rowNumber, 1);
-
-        return IsExcelDateCell(dateCell) &&
-               dateCell.TryGetValue<DateTime>(out _);
-    }
+    private static bool HasExpectedHeaders(IXLWorksheet worksheet, int rowNumber) =>
+        Normalize(worksheet.Cell(rowNumber, 1).GetString()) == ExpectedDateHeader &&
+        Normalize(worksheet.Cell(rowNumber, 2).GetString()) == ExpectedAmountHeader;
 
     private static bool IsExcelDateCell(IXLCell cell)
     {
@@ -247,6 +247,29 @@ public sealed class XlsxAssetFileParser : IAssetFileParser
         worksheet.Row(rowNumber)
             .CellsUsed()
             .Any(cell => cell.Address.ColumnNumber > 2 && !cell.IsEmpty());
+
+    private static string Normalize(string value)
+    {
+        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(decomposed.Length);
+
+        foreach (var character in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(character == 'ı'
+                    ? 'i'
+                    : char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
+    }
 
     private static bool HasZipSignature(MemoryStream stream)
     {

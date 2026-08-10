@@ -27,17 +27,24 @@ public static class ReportPageViewModelFactory
                 new(
                     "Rapor Ayı Varlık Tutarı",
                     FormatMoney(report.Summary.ReportMonthAssetAmount),
-                    $"{FormatMonth(report.Summary.ReportMonth)} nominal tutarı",
-                    ReportKpiTone.Brand),
+                    $"{FormatMonth(report.Summary.ReportMonth)} ayındaki nominal varlık tutarı.",
+                    ReportKpiTone.Brand,
+                    ReportKpiIcon.AssetAmount),
                 CreateRateKpi(
-                    "Nominal Varlık Değişimi",
-                    report.Summary.NominalAssetChangeRate),
+                    "Nominal Değişim",
+                    report.Summary.NominalAssetChangeRate,
+                    "Rapor döneminin ilk ayından rapor ayına TL bazındaki değişim.",
+                    ReportKpiIcon.NominalChange),
                 CreateRateKpi(
-                    "Dolarizasyon Varlık Değişimi",
-                    report.Summary.DollarizedAssetChangeRate),
+                    "Dolar Bazlı Değişim",
+                    report.Summary.DollarizedAssetChangeRate,
+                    "Varlığın USD karşılığının rapor döneminin ilk ayından rapor ayına değişimi.",
+                    ReportKpiIcon.DollarizedChange),
                 CreateRateKpi(
-                    "Enflasyon Varlık Değişimi",
-                    report.Summary.InflationAdjustedAssetChangeRate)
+                    "Yİ-ÜFE’ye Göre Reel Değişim",
+                    report.Summary.InflationAdjustedAssetChangeRate,
+                    "Varlığın rapor dönemindeki Yİ-ÜFE etkisinden arındırılmış değişimi.",
+                    ReportKpiIcon.InflationAdjustedChange)
             ],
             Rows: report.Rows
                 .Select((row, index) => new ReportRowViewModel(
@@ -70,7 +77,9 @@ public static class ReportPageViewModelFactory
 
     private static ReportKpiViewModel CreateRateKpi(
         string label,
-        decimal? rate)
+        decimal? rate,
+        string description,
+        ReportKpiIcon icon)
     {
         var tone = rate switch
         {
@@ -82,8 +91,9 @@ public static class ReportPageViewModelFactory
         return new(
             label,
             FormatPercentage(rate),
-            "İlk aydan rapor ayına",
-            tone);
+            description,
+            tone,
+            icon);
     }
 
     private static string FormatMonth(DateOnly month)

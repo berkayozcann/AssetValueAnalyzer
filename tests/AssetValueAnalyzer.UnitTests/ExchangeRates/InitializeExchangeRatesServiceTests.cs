@@ -12,7 +12,7 @@ public sealed class InitializeExchangeRatesServiceTests
     [Fact]
     public async Task InitializeAsync_WithEmptyStore_BackfillsFromDecember2021()
     {
-        var fixture = new Fixture(latestRateDate: null);
+        var fixture = new Fixture(earliestRateDate: null, latestRateDate: null);
 
         var result = await fixture.Service.InitializeAsync(CancellationToken.None);
 
@@ -24,10 +24,12 @@ public sealed class InitializeExchangeRatesServiceTests
     }
 
     [Fact]
-    public async Task InitializeAsync_WithOlderData_OverlapsLatestDayAndFillsToToday()
+    public async Task InitializeAsync_WithHistoricalCoverageStartingOnDecember8AndOlderLatestDate_OverlapsLatestDayAndFillsToToday()
     {
         var latestRateDate = new DateOnly(2026, 8, 5);
-        var fixture = new Fixture(latestRateDate);
+        var fixture = new Fixture(
+            earliestRateDate: new DateOnly(2021, 12, 8),
+            latestRateDate: latestRateDate);
 
         var result = await fixture.Service.InitializeAsync(CancellationToken.None);
 
@@ -37,9 +39,29 @@ public sealed class InitializeExchangeRatesServiceTests
     }
 
     [Fact]
-    public async Task InitializeAsync_WithTodaysData_RequestsCurrentRatesWithoutDates()
+    public async Task InitializeAsync_WithIncompleteHistoricalCoverage_BackfillsFromDecember2021()
     {
-        var fixture = new Fixture(new DateOnly(2026, 8, 7));
+        var latestRateDate = new DateOnly(2026, 8, 5);
+        var fixture = new Fixture(
+            earliestRateDate: latestRateDate,
+            latestRateDate: latestRateDate);
+
+        var result = await fixture.Service.InitializeAsync(CancellationToken.None);
+
+        Assert.Equal(
+            InitializeExchangeRatesService.InitialBackfillDate,
+            result.RequestedStartDate);
+        Assert.Equal(new DateOnly(2026, 8, 7), result.RequestedEndDate);
+        Assert.Equal(result.RequestedStartDate, fixture.Client.StartDate);
+        Assert.Equal(result.RequestedEndDate, fixture.Client.EndDate);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WithHistoricalCoverageStartingOnDecember8AndTodaysData_RequestsCurrentRatesWithoutDates()
+    {
+        var fixture = new Fixture(
+            new DateOnly(2021, 12, 8),
+            new DateOnly(2026, 8, 7));
 
         var result = await fixture.Service.InitializeAsync(CancellationToken.None);
 
@@ -50,9 +72,27 @@ public sealed class InitializeExchangeRatesServiceTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WithOnlyRecentDay_BackfillsFromDecember2021()
+    {
+        var today = new DateOnly(2026, 8, 7);
+        var fixture = new Fixture(today, today);
+
+        var result = await fixture.Service.InitializeAsync(CancellationToken.None);
+
+        Assert.Equal(
+            InitializeExchangeRatesService.InitialBackfillDate,
+            result.RequestedStartDate);
+        Assert.Equal(today, result.RequestedEndDate);
+        Assert.Equal(result.RequestedStartDate, fixture.Client.StartDate);
+        Assert.Equal(result.RequestedEndDate, fixture.Client.EndDate);
+    }
+
+    [Fact]
     public async Task InitializeAsync_WithFutureStoredDate_RejectsBeforeCallingFinmaks()
     {
-        var fixture = new Fixture(new DateOnly(2026, 8, 8));
+        var fixture = new Fixture(
+            InitializeExchangeRatesService.InitialBackfillDate,
+            new DateOnly(2026, 8, 8));
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.Service.InitializeAsync(CancellationToken.None));
@@ -62,10 +102,11 @@ public sealed class InitializeExchangeRatesServiceTests
 
     private sealed class Fixture
     {
-        public Fixture(DateOnly? latestRateDate)
+        public Fixture(DateOnly? earliestRateDate, DateOnly? latestRateDate)
         {
             Client = new CapturingFinmaksClient();
-            var store = new StubExchangeRateStore(latestRateDate);
+            var store = new StubExchangeRateStore(
+                new ExchangeRateDateCoverage(earliestRateDate, latestRateDate));
             var timeProvider = new FixedTimeProvider(UtcNow);
             var synchronizationService = new ExchangeRateSynchronizationService(
                 Client,
@@ -104,11 +145,12 @@ public sealed class InitializeExchangeRatesServiceTests
         }
     }
 
-    private sealed class StubExchangeRateStore(DateOnly? latestRateDate) : IExchangeRateStore
+    private sealed class StubExchangeRateStore(
+        ExchangeRateDateCoverage coverage) : IExchangeRateStore
     {
-        public Task<DateOnly?> GetLatestRateDateAsync(
+        public Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(latestRateDate);
+            Task.FromResult(coverage);
 
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,

@@ -1,25 +1,28 @@
 ﻿@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "Bir Sorun Oluştu";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<section class="app-shell flex min-h-[calc(100vh-5rem)] items-center justify-center py-12">
+    <div class="surface-card w-full max-w-2xl rounded-2xl px-6 py-12 text-center sm:px-10">
+        <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-negative-400/30 bg-negative-400/10 text-negative-400" aria-hidden="true">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 7.5v6M12 17h.01"></path>
+            </svg>
+        </span>
+        <h1 class="mt-6 text-3xl font-semibold tracking-tight text-ink-900">İşlem tamamlanamadı</h1>
+        <p class="mx-auto mt-3 max-w-xl leading-relaxed text-slate-300">Beklenmeyen bir sorun oluştu. Ana Sayfa’ya dönüp işlemi yeniden deneyin.</p>
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+        @if (Model.ShowRequestId)
+        {
+            <p class="mt-4 text-xs text-slate-500">
+                İstek kodu: <code class="text-slate-400">@Model.RequestId</code>
+            </p>
+        }
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        <a class="primary-button mt-7 inline-flex h-11 items-center justify-center rounded-lg px-6 text-sm font-semibold"
+           asp-controller="Home"
+           asp-action="Index">Ana Sayfaya Dön</a>
+    </div>
+</section>

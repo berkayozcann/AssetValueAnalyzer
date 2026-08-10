@@ -43,7 +43,7 @@ public sealed class ReportsController(
                     new
                     {
                         code = "MissingFiles",
-                        message = "Tarih aralığını kontrol etmek için önce Varlık ve Endeks dosyalarını yükleyin."
+                        message = "Rapor dönemini kontrol etmek için önce Aylık Varlık Verisi ve Yİ-ÜFE Endeks Verisi dosyalarını yükleyin."
                     }
                 }
             });
@@ -60,7 +60,7 @@ public sealed class ReportsController(
                     new
                     {
                         code = "InvalidMonth",
-                        message = "Tarih alanları geçerli bir ay ve yıl içermelidir."
+                        message = "Rapor dönemi alanları geçerli bir ay ve yıl içermelidir."
                     }
                 }
             });
@@ -96,14 +96,14 @@ public sealed class ReportsController(
 
         if (snapshot.AssetValues is null || snapshot.ProducerPriceIndices is null)
         {
-            SetReportError("Rapor oluşturmak için önce Varlık ve Endeks dosyalarını yükleyin.");
+            SetReportError("Finansal etki analizi oluşturmak için önce Aylık Varlık Verisi ve Yİ-ÜFE Endeks Verisi dosyalarını yükleyin.");
             return RedirectAfterCreationError(snapshot);
         }
 
         if (!TryParseMonth(form.StartMonth, out var startMonth) ||
             !TryParseMonth(form.EndMonth, out var endMonth))
         {
-            SetReportError("Tarih alanları geçerli bir ay ve yıl içermelidir.");
+            SetReportError("Rapor dönemi alanları geçerli bir ay ve yıl içermelidir.");
             return RedirectAfterCreationError(snapshot);
         }
 
