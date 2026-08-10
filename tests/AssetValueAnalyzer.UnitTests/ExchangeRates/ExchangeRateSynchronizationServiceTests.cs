@@ -21,10 +21,15 @@ public sealed class ExchangeRateSynchronizationServiceTests
             CentralBankExchangeRate: 47.57360m,
             CrossRate: 1.00000m,
             SourceUpdatedAt: new DateTime(2026, 8, 6, 6, 4, 36));
-        var finmaksClient = new StubFinmaksExchangeRateClient([quote]);
+        var eurQuote = quote with
+        {
+            BaseCurrencyCode = 4,
+            CashChangeRate = 53.12500m
+        };
+        var finmaksClient = new StubFinmaksExchangeRateClient([quote, eurQuote]);
         var exchangeRateStore = new CapturingExchangeRateStore(
             new ExchangeRateUpsertResult(
-                InsertedCount: 1,
+                InsertedCount: 2,
                 UpdatedCount: 0,
                 UnchangedCount: 0));
         var service = new ExchangeRateSynchronizationService(
@@ -37,19 +42,30 @@ public sealed class ExchangeRateSynchronizationServiceTests
 
         var result = await service.SynchronizeAsync(request, CancellationToken.None);
 
-        Assert.Equal(1, result.ReceivedCount);
-        Assert.Equal(1, result.InsertedCount);
+        Assert.Equal(2, result.ReceivedCount);
+        Assert.Equal(2, result.InsertedCount);
         Assert.Equal(0, result.UpdatedCount);
         Assert.Equal(0, result.UnchangedCount);
         Assert.Equal(request.StartDate, finmaksClient.StartDate);
         Assert.Equal(request.EndDate, finmaksClient.EndDate);
 
-        var savedRate = Assert.Single(exchangeRateStore.ExchangeRates);
-        Assert.Equal(1, savedRate.BaseCurrencyCode);
-        Assert.Equal(56, savedRate.ForeignCurrencyCode);
-        Assert.Equal(new DateOnly(2026, 8, 6), savedRate.RateDate);
-        Assert.Equal(46.55073m, savedRate.CashChangeRate);
-        Assert.Equal(retrievedAtUtc, savedRate.RetrievedAtUtc);
+        Assert.Collection(
+            exchangeRateStore.ExchangeRates,
+            savedRate =>
+            {
+                Assert.Equal(1, savedRate.BaseCurrencyCode);
+                Assert.Equal(56, savedRate.ForeignCurrencyCode);
+                Assert.Equal(new DateOnly(2026, 8, 6), savedRate.RateDate);
+                Assert.Equal(46.55073m, savedRate.CashChangeRate);
+                Assert.Equal(retrievedAtUtc, savedRate.RetrievedAtUtc);
+            },
+            savedRate =>
+            {
+                Assert.Equal(4, savedRate.BaseCurrencyCode);
+                Assert.Equal(56, savedRate.ForeignCurrencyCode);
+                Assert.Equal(53.12500m, savedRate.CashChangeRate);
+                Assert.Equal(retrievedAtUtc, savedRate.RetrievedAtUtc);
+            });
     }
 
     [Fact]
@@ -97,9 +113,15 @@ public sealed class ExchangeRateSynchronizationServiceTests
     {
         public IReadOnlyCollection<ExchangeRate> ExchangeRates { get; private set; } = [];
 
-        public Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
+        public Task<ExchangeRateBackfillState?> GetBackfillStateAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ExchangeRateDateCoverage(null, null));
+            Task.FromResult<ExchangeRateBackfillState?>(null);
+
+        public Task MarkBackfillCompletedAsync(
+            DateOnly completedThroughDate,
+            DateTimeOffset completedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
 
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,

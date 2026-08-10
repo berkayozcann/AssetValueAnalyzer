@@ -1,9 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AssetValueAnalyzer.Application.ExchangeRates.External;
+using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.IntegrationTests.Support;
+using AssetValueAnalyzer.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace AssetValueAnalyzer.IntegrationTests.Http;
 
@@ -11,6 +17,27 @@ public sealed class ExchangeRatesApiTests(
     AssetValueAnalyzerApiApplicationFactory factory)
     : IClassFixture<AssetValueAnalyzerApiApplicationFactory>
 {
+    [Fact]
+    public void ApiHost_UsesIsolatedTestingConfigurationAndOnlyFakeReader()
+    {
+        var environment = factory.Services.GetRequiredService<IHostEnvironment>();
+        var configuration = factory.Services.GetRequiredService<IConfiguration>();
+        var connectionString = configuration.GetConnectionString(
+            DependencyInjection.DatabaseConnectionName);
+        using var scope = factory.Services.CreateScope();
+        var reader = scope.ServiceProvider.GetRequiredService<IExchangeRateReader>();
+
+        Assert.Equal(
+            AssetValueAnalyzerApiApplicationFactory.TestingEnvironmentName,
+            environment.EnvironmentName);
+        Assert.Contains("integration-test.invalid", connectionString);
+        Assert.Contains("FakeExchangeRateReader", reader.GetType().Name);
+        Assert.Null(scope.ServiceProvider.GetService<IFinmaksExchangeRateClient>());
+        Assert.DoesNotContain(
+            factory.Services.GetServices<IHostedService>(),
+            service => service.GetType().Namespace?.StartsWith("Hangfire", StringComparison.Ordinal) == true);
+    }
+
     [Fact]
     public async Task GetLatest_WithoutFilters_ReturnsLatestDateDtosWithoutEntityId()
     {

@@ -9,6 +9,10 @@ public sealed record ExchangeRateCardViewModel(
     bool HasRate = true)
 {
     public string Label { get; init; } = "USD / TRY";
+
+    public string RateDateText { get; init; } = string.Empty;
+
+    public bool IsAwaitingCurrentDayRate { get; init; }
 }
 
 public enum ExchangeRateTrend

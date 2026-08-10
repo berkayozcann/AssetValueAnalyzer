@@ -4,7 +4,12 @@ namespace AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 
 public interface IExchangeRateStore
 {
-    Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
+    Task<ExchangeRateBackfillState?> GetBackfillStateAsync(
+        CancellationToken cancellationToken = default);
+
+    Task MarkBackfillCompletedAsync(
+        DateOnly completedThroughDate,
+        DateTimeOffset completedAtUtc,
         CancellationToken cancellationToken = default);
 
     Task<ExchangeRateUpsertResult> UpsertAsync(
@@ -12,9 +17,9 @@ public interface IExchangeRateStore
         CancellationToken cancellationToken = default);
 }
 
-public sealed record ExchangeRateDateCoverage(
-    DateOnly? EarliestRateDate,
-    DateOnly? LatestRateDate);
+public sealed record ExchangeRateBackfillState(
+    DateOnly CompletedThroughDate,
+    DateTimeOffset CompletedAtUtc);
 
 public sealed record ExchangeRateUpsertResult(
     int InsertedCount,

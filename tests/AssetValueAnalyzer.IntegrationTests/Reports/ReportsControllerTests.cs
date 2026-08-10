@@ -285,7 +285,8 @@ public sealed class ReportsControllerTests
                     new DateOnly(2026, 8, 8),
                     new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero),
                     47m)),
-            new XlsxFinancialImpactReportExporter());
+            new XlsxFinancialImpactReportExporter(),
+            TimeProvider.System);
 
         controller.ControllerContext = new ControllerContext
         {

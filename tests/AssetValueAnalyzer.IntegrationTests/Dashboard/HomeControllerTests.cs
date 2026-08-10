@@ -15,7 +15,8 @@ public sealed class HomeControllerTests
     {
         var controller = new HomeController(
             new TestReportWorkspaceSession(),
-            new FakeCurrentUsdExchangeRateReader());
+            new FakeCurrentUsdExchangeRateReader(),
+            TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());
         var model = Assert.IsType<DashboardPageViewModel>(result.Model);
@@ -42,7 +43,8 @@ public sealed class HomeControllerTests
             ]);
         var controller = new HomeController(
             workspace,
-            new FakeCurrentUsdExchangeRateReader());
+            new FakeCurrentUsdExchangeRateReader(),
+            TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());
         var model = Assert.IsType<DashboardPageViewModel>(result.Model);
@@ -64,7 +66,8 @@ public sealed class HomeControllerTests
         workspace.SaveCompletedReport(TestReportPageViewModelFactory.Create());
         var controller = new HomeController(
             workspace,
-            new FakeCurrentUsdExchangeRateReader());
+            new FakeCurrentUsdExchangeRateReader(),
+            TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());
         var model = Assert.IsType<DashboardPageViewModel>(result.Model);

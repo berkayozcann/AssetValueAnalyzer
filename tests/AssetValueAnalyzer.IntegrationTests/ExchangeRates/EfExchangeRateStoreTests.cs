@@ -9,7 +9,7 @@ namespace AssetValueAnalyzer.IntegrationTests.ExchangeRates;
 public sealed class EfExchangeRateStoreTests
 {
     [Fact]
-    public async Task GetDateCoverageAsync_ReturnsEarliestAndLatestStoredDates()
+    public async Task GetBackfillStateAsync_WithRatesButNoCheckpoint_ReturnsNull()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(CancellationToken.None);
@@ -22,27 +22,27 @@ public sealed class EfExchangeRateStoreTests
             await setupContext.Database.EnsureCreatedAsync(CancellationToken.None);
             setupContext.ExchangeRates.AddRange(
                 CreateExchangeRate(
-                    new DateTime(2026, 8, 5, 6, 0, 0),
-                    new DateTimeOffset(2026, 8, 5, 6, 1, 0, TimeSpan.Zero),
+                    new DateTime(2021, 12, 8, 6, 0, 0),
+                    new DateTimeOffset(2021, 12, 8, 6, 1, 0, TimeSpan.Zero),
                     46.10000m),
                 CreateExchangeRate(
                     new DateTime(2026, 8, 7, 6, 0, 0),
                     new DateTimeOffset(2026, 8, 7, 6, 1, 0, TimeSpan.Zero),
-                    46.50000m));
+                    53.10000m,
+                    baseCurrencyCode: 4));
             await setupContext.SaveChangesAsync(CancellationToken.None);
         }
 
         await using var queryContext = new AssetValueAnalyzerDbContext(dbContextOptions);
         var store = new EfExchangeRateStore(queryContext);
 
-        var coverage = await store.GetDateCoverageAsync(CancellationToken.None);
+        var state = await store.GetBackfillStateAsync(CancellationToken.None);
 
-        Assert.Equal(new DateOnly(2026, 8, 5), coverage.EarliestRateDate);
-        Assert.Equal(new DateOnly(2026, 8, 7), coverage.LatestRateDate);
+        Assert.Null(state);
     }
 
     [Fact]
-    public async Task GetDateCoverageAsync_WithEmptyStore_ReturnsEmptyCoverage()
+    public async Task MarkBackfillCompletedAsync_CreatesAndAdvancesSingletonWithoutRegression()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(CancellationToken.None);
@@ -53,11 +53,30 @@ public sealed class EfExchangeRateStoreTests
         await using var dbContext = new AssetValueAnalyzerDbContext(dbContextOptions);
         await dbContext.Database.EnsureCreatedAsync(CancellationToken.None);
         var store = new EfExchangeRateStore(dbContext);
+        var firstCompletionTime =
+            new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.Zero);
+        var latestCompletionTime =
+            new DateTimeOffset(2026, 8, 7, 9, 0, 0, TimeSpan.Zero);
 
-        var coverage = await store.GetDateCoverageAsync(CancellationToken.None);
+        await store.MarkBackfillCompletedAsync(
+            new DateOnly(2026, 8, 5),
+            firstCompletionTime,
+            CancellationToken.None);
+        await store.MarkBackfillCompletedAsync(
+            new DateOnly(2026, 8, 7),
+            latestCompletionTime,
+            CancellationToken.None);
+        await store.MarkBackfillCompletedAsync(
+            new DateOnly(2026, 8, 6),
+            latestCompletionTime.AddHours(1),
+            CancellationToken.None);
 
-        Assert.Null(coverage.EarliestRateDate);
-        Assert.Null(coverage.LatestRateDate);
+        var state = await store.GetBackfillStateAsync(CancellationToken.None);
+
+        Assert.NotNull(state);
+        Assert.Equal(new DateOnly(2026, 8, 7), state.CompletedThroughDate);
+        Assert.Equal(latestCompletionTime, state.CompletedAtUtc);
+        Assert.Single(dbContext.ExchangeRateBackfillCheckpoints);
     }
 
     [Fact]
@@ -178,10 +197,12 @@ public sealed class EfExchangeRateStoreTests
     private static ExchangeRate CreateExchangeRate(
         DateTime sourceUpdatedAt,
         DateTimeOffset retrievedAtUtc,
-        decimal cashChangeRate) =>
+        decimal cashChangeRate,
+        int baseCurrencyCode = 1,
+        int foreignCurrencyCode = 56) =>
         new(
-            baseCurrencyCode: 1,
-            foreignCurrencyCode: 56,
+            baseCurrencyCode,
+            foreignCurrencyCode,
             sourceUpdatedAt,
             retrievedAtUtc,
             changeRate: 46.87830m,

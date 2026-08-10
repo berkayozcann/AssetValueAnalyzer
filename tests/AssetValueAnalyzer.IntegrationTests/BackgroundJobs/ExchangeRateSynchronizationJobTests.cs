@@ -65,9 +65,15 @@ public sealed class ExchangeRateSynchronizationJobTests
     {
         public int CallCount { get; private set; }
 
-        public Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
+        public Task<ExchangeRateBackfillState?> GetBackfillStateAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ExchangeRateDateCoverage(null, null));
+            Task.FromResult<ExchangeRateBackfillState?>(null);
+
+        public Task MarkBackfillCompletedAsync(
+            DateOnly completedThroughDate,
+            DateTimeOffset completedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
 
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,

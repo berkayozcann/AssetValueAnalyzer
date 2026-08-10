@@ -1,14 +1,12 @@
 extern alias WebApp;
 
+using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.Reports.Creation;
-using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
-using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Web.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -18,19 +16,11 @@ namespace AssetValueAnalyzer.IntegrationTests.Support;
 public sealed class AssetValueAnalyzerWebApplicationFactory
     : WebApplicationFactory<WebApp::Program>
 {
+    public const string TestingEnvironmentName = "Testing";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Development);
-        builder.ConfigureAppConfiguration((_, configuration) =>
-        {
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [$"ConnectionStrings:{DependencyInjection.DatabaseConnectionName}"] =
-                    "Server=integration-test;Database=AssetValueAnalyzer;Integrated Security=true;TrustServerCertificate=True",
-                ["Finmaks:ApiKey"] = "integration-test-key",
-                [$"{ExchangeRateRecurringJobOptions.SectionName}:Enabled"] = "false"
-            });
-        });
+        builder.UseEnvironment(TestingEnvironmentName);
         builder.ConfigureTestServices(services =>
         {
             var initializationHostedService = services.SingleOrDefault(descriptor =>
@@ -52,7 +42,20 @@ public sealed class AssetValueAnalyzerWebApplicationFactory
                     new(new DateOnly(2021, 12, 31), 10m),
                     new(new DateOnly(2022, 1, 31), 20m)
                 ]));
+            services.RemoveAll<IFinmaksExchangeRateClient>();
+            services.AddSingleton<IFinmaksExchangeRateClient>(
+                new BlockedFinmaksExchangeRateClient());
         });
+    }
+
+    private sealed class BlockedFinmaksExchangeRateClient : IFinmaksExchangeRateClient
+    {
+        public Task<IReadOnlyList<ExchangeRateQuote>> GetRatesAsync(
+            DateOnly? startDate = null,
+            DateOnly? endDate = null,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(
+                "The integration-test host must not call the real Finmaks service.");
     }
 
     private sealed class FakeUsdCashChangeRateReader(

@@ -3,13 +3,19 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.IntegrationTests.Support;
+using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 using AssetValueAnalyzer.Infrastructure.Reports.Exporting;
 using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
+using AssetValueAnalyzer.Web.Hosting;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace AssetValueAnalyzer.IntegrationTests.Http;
 
@@ -17,6 +23,34 @@ public sealed partial class WebApplicationSmokeTests(
     AssetValueAnalyzerWebApplicationFactory factory)
     : IClassFixture<AssetValueAnalyzerWebApplicationFactory>
 {
+    [Fact]
+    public void WebHost_UsesIsolatedTestingConfigurationWithoutRealWorkersOrFinmaksClient()
+    {
+        var environment = factory.Services.GetRequiredService<IHostEnvironment>();
+        var configuration = factory.Services.GetRequiredService<IConfiguration>();
+        var connectionString = configuration.GetConnectionString(
+            DependencyInjection.DatabaseConnectionName);
+        var hostedServices = factory.Services.GetServices<IHostedService>().ToArray();
+        using var scope = factory.Services.CreateScope();
+        var finmaksClient = scope.ServiceProvider
+            .GetRequiredService<IFinmaksExchangeRateClient>();
+
+        Assert.Equal(
+            AssetValueAnalyzerWebApplicationFactory.TestingEnvironmentName,
+            environment.EnvironmentName);
+        Assert.Contains("integration-test.invalid", connectionString);
+        Assert.DoesNotContain(
+            hostedServices,
+            service => service is ExchangeRateInitializationHostedService);
+        Assert.DoesNotContain(
+            hostedServices,
+            service => service is ExchangeRateRecurringJobRegistrationHostedService);
+        Assert.DoesNotContain(
+            hostedServices,
+            service => service.GetType().Namespace?.StartsWith("Hangfire", StringComparison.Ordinal) == true);
+        Assert.Contains("BlockedFinmaksExchangeRateClient", finmaksClient.GetType().Name);
+    }
+
     [Fact]
     public void WebHost_UsesSignalRNotifierInsteadOfInfrastructureFallback()
     {

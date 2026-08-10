@@ -12,4 +12,8 @@
     <UserSecretsId>AssetValueAnalyzer-Development</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Update="appsettings.Testing.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

@@ -6,7 +6,8 @@ namespace AssetValueAnalyzer.Web.Controllers;
 
 [Route("exchange-rates")]
 public sealed class ExchangeRatesController(
-    ICurrentUsdExchangeRateReader currentRateReader) : Controller
+    ICurrentUsdExchangeRateReader currentRateReader,
+    TimeProvider timeProvider) : Controller
 {
     [HttpGet("card")]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -14,7 +15,8 @@ public sealed class ExchangeRatesController(
         CancellationToken cancellationToken = default)
     {
         var exchangeRate = ExchangeRateCardViewModelFactory.Create(
-            await currentRateReader.ReadAsync(cancellationToken));
+            await currentRateReader.ReadAsync(cancellationToken),
+            timeProvider);
 
         return PartialView("~/Views/Shared/_ExchangeRateCard.cshtml", exchangeRate);
     }

@@ -1,32 +1,22 @@
 extern alias ApiApp;
 
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
-using AssetValueAnalyzer.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 
 namespace AssetValueAnalyzer.IntegrationTests.Support;
 
 public sealed class AssetValueAnalyzerApiApplicationFactory
     : WebApplicationFactory<ApiApp::Program>
 {
+    public const string TestingEnvironmentName = "Testing";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Development);
-        builder.ConfigureAppConfiguration((_, configuration) =>
-        {
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [$"ConnectionStrings:{DependencyInjection.DatabaseConnectionName}"] =
-                    "Server=integration-test;Database=AssetValueAnalyzer;Integrated Security=true;TrustServerCertificate=True",
-                ["Finmaks:ApiKey"] = string.Empty
-            });
-        });
+        builder.UseEnvironment(TestingEnvironmentName);
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IExchangeRateReader>();

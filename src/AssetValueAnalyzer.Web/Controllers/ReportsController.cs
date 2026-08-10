@@ -16,7 +16,8 @@ public sealed class ReportsController(
     CreateFinancialImpactReportService createReportService,
     FinancialImpactReportRangeValidator rangeValidator,
     ICurrentUsdExchangeRateReader currentRateReader,
-    IFinancialImpactReportExporter reportExporter) : Controller
+    IFinancialImpactReportExporter reportExporter,
+    TimeProvider timeProvider) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
@@ -167,7 +168,8 @@ public sealed class ReportsController(
     private async Task<ExchangeRateCardViewModel> GetCurrentExchangeRateCardAsync(
         CancellationToken cancellationToken) =>
         ExchangeRateCardViewModelFactory.Create(
-            await currentRateReader.ReadAsync(cancellationToken));
+            await currentRateReader.ReadAsync(cancellationToken),
+            timeProvider);
 
     private static CreateFinancialImpactReportRequest CreateRequest(
         ReportWorkspaceSnapshot snapshot,

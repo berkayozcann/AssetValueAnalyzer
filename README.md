@@ -33,7 +33,7 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
 Zorunlu kapsam ve şartnamedeki EF Core Code First, ayrı API, Hangfire ve SignalR
 bonusları tamamlandı. Temiz MSSQL migration, Docker Compose, Release publish,
 secret/artifact taraması ve son teslim kontrolleri doğrulandı. GitHub Actions CI
-workflow'u isteğe bağlı bir sonraki iyileştirme olarak bırakıldı.
+workflow'u bu 3–4 günlük teslim kapsamına eklenmedi.
 
 ## Kullanılan teknolojiler
 
@@ -89,14 +89,23 @@ controller veya Razor view içine taşınmaz.
 ```text
 Web uygulaması başlar
 → ExchangeRateInitializationHostedService scope oluşturur
-→ InitializeExchangeRatesService mevcut son kur tarihini okur
-→ DB boşsa 2021-12-01'den bugüne, doluysa eksik aralığı ister
-→ Finmaks typed client response'u normalize eder
+→ InitializeExchangeRatesService tüm-kur backfill checkpoint'ini okur
+→ checkpoint yoksa 2021-12-01'den bugüne bütün kurları ister
+→ checkpoint eskiyse son tamamlanan gün ile bugün arasını bütün kurlar için ister
+→ Finmaks typed client response'taki bütün para çiftlerini normalize eder
 → EF Core aynı para çifti ve gün için insert/update/unchanged uygular
+→ tarihli istek veri döndürdüyse checkpoint bugüne ilerletilir
 ```
 
 Başlangıç senkronizasyonu hata alırsa hata loglanır ve web hostu çalışmaya devam
-eder.
+eder. Tamamlanma kararı herhangi bir para biriminin minimum/maksimum tarihinden
+çıkarılmaz; checkpoint, ilgili tarih aralığı için Finmaks'ın döndürdüğü bütün para
+çiftlerinin başarıyla işlendiğini gösterir. Tarihli istek boş dönerse checkpoint
+ilerletilmez ve sonraki açılışta yeniden denenir. Migration yalnız tablo/index ve
+checkpoint şemasını kurar; Finmaks verisini migration değil, Web hostunun bu
+başlangıç akışı çeker. Mevcut veritabanında yeni checkpoint ilk başta boş olduğu
+için migration sonrasındaki ilk Web açılışı bütün tarihsel kurları bir kez yeniden
+doğrular; sonraki açılışlar yalnız eksik aralığı tamamlar.
 
 ### 2. Periyodik kur senkronizasyonu
 
@@ -116,6 +125,18 @@ Periyot `ExchangeRateRecurringJob:IntervalMinutes` ayarıyla değiştirilebilir;
 cron kararlılığı için değer 60'ı kalansız bölmelidir. Hangfire dashboard endpointi
 bilinçli olarak açılmamıştır. Job üç otomatik retry ve 120 saniyelik concurrent
 execution kilidi kullanır; kalıcı idempotency güvencesi MSSQL unique indexidir.
+Startup senkronizasyonu ile Hangfire aynı business key'i eşzamanlı eklerse unique
+index veriyi korur; ikinci işlem EF state'ini temizleyip DB'yi yalnız bir kez daha
+okuyarak update/unchanged yolundan tamamlanır.
+
+Projede gözlemlenen Finmaks test API davranışında yayımlanan günlük kur gün içinde
+değişmemektedir. Bu nedenle karttaki trend, son üç dakikayı değil son yayımlanan
+USD/TRY kur gününü bir önceki kur günüyle karşılaştırır. Kart gerçek kur tarihini
+ayrıca gösterir; sistem tarihi daha yeni olduğu hâlde bugünün kaydı henüz
+yayımlanmadıysa `Bugünün kuru bekleniyor` durumuna geçer. Hangfire yine her üç
+dakikada bir bugünü kontrol eder. `Son kontrol`, kartta gösterilen kur kaydının
+DB'ye son başarılı alınma zamanıdır; Finmaks boş cevap verdiğinde ortada yenilenecek
+bir kur kaydı olmadığı için bu zaman değişmez.
 
 ### 3. Dosya yükleme ve session
 
@@ -240,8 +261,10 @@ dotnet ef database update \
   --startup-project src/AssetValueAnalyzer.Web
 ```
 
-Bu komut `ExchangeRates` tablosunu ve
-`(BaseCurrencyCode, ForeignCurrencyCode, RateDate)` unique indexini oluşturur.
+Bu komut `ExchangeRates` tablosunu,
+`(BaseCurrencyCode, ForeignCurrencyCode, RateDate)` unique indexini ve
+tüm-kur başlangıç senkronizasyonunu izleyen tek satırlık
+`ExchangeRateBackfillCheckpoints` tablosunu oluşturur.
 Web uygulaması ilk kez başladığında Hangfire kendi operasyonel tablolarını aynı
 veritabanındaki ayrı `HangFire` şemasında otomatik hazırlar.
 
@@ -349,13 +372,13 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 Son doğrulanan durum:
 
 - Unit test: `43/43`
-- Integration test: `92/92`
-- Toplam: `135/135`
+- Integration test: `100/100`
+- Toplam: `143/143`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
 mapping'ini, EF upsert davranışını, session/controller akışını, SignalR notifier/hub
-wiring'ini, eksik tarihsel kur kapsamının yeniden backfill edilmesini, son iş günü
+wiring'ini, tüm-kur checkpoint'i yoksa tarihsel backfill yapılmasını, son iş günü
 kur seçimini ve 14 kolonlu finansal hesabı kapsar. HTTP smoke testleri;
 ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
 başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
@@ -366,21 +389,26 @@ cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih a
 vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri
 Web hostunun gerçek notifier'ı kullandığını, hub negotiate route'unu ve refetch
 partial sözleşmesini doğrular.
-Dokuz ayrı API HTTP testi; DTO sözleşmesini, tek-gün/aralık filtrelerini, model
+On ayrı API HTTP testi; DTO sözleşmesini, tek-gün/aralık filtrelerini, model
 binding davranışını ve
-`200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular. Gerçek
-API test hostu boş Finmaks anahtarıyla çalıştırılarak yalnız read-only MSSQL
-bağımlılıklarının kaydedildiği ayrıca doğrulanır. MSSQL migration smoke
-kontrolü ayrı ve boş bir veritabanına initial migration'ı uygulamış;
-`ExchangeRates` tablosu ile unique currency-pair/date indexini oluşturmuş ve
-kontrol sonrası geçici veritabanını kaldırmıştır. Gerçek MSSQL'e bağlı API
+`200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular.
+Web ve API test hostları `Testing` ortamında, source-controlled sahte connection
+string ile açılır; user-secrets yüklenmez. Web test hostunda Hangfire ve başlangıç
+senkronizasyonu çalışmaz, Finmaks istemcisi çağrılırsa test anında hata verir. API
+test hostu ise yalnız sahte read-only reader kullanır. Böylece normal `dotnet test`
+gerçek MSSQL, Finmaks veya canlı Hangfire kuyruğuna dokunmaz. MSSQL migration smoke
+kontrolü eski şemaya mevcut bir kur satırı ekleyip checkpoint migration'ına
+yükseltmiş; kur satırının korunduğunu, checkpoint tablosunun boş başladığını ve
+singleton constraint'ini doğruladıktan sonra geçici veritabanını kaldırmıştır.
+Gerçek MSSQL'e bağlı API
 smoke kontrolü; en güncel USD/TRY sorgusunda tek DTO, Aralık 2021 aralık sorgusunda
 24 kayıt, geçersiz `limit` için `400` ve bulunmayan tarih için `404` üretmiştir.
 
 ## Bilinen kapsam sınırları
 
 - Authentication/authorization şartnamede istenmediği için yoktur.
-- Grafik, CSV/Excel export ve public deployment zorunlu kapsamda değildir.
+- Grafik ve public deployment zorunlu kapsamda değildir; XLSX rapor exportu ekstra
+  özellik olarak tamamlanmıştır.
 - Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
 - Çoklu instance deployment için distributed session store henüz yoktur.
 - Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.

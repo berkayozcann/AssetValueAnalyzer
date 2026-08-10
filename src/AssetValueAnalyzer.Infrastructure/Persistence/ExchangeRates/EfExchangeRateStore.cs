@@ -1,5 +1,6 @@
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Domain.ExchangeRates;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
@@ -7,18 +8,52 @@ namespace AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
 public sealed class EfExchangeRateStore(
     AssetValueAnalyzerDbContext dbContext) : IExchangeRateStore
 {
-    public async Task<ExchangeRateDateCoverage> GetDateCoverageAsync(
+    public async Task<ExchangeRateBackfillState?> GetBackfillStateAsync(
         CancellationToken cancellationToken = default)
     {
-        var coverage = await dbContext.ExchangeRates
+        return await dbContext.ExchangeRateBackfillCheckpoints
             .AsNoTracking()
-            .GroupBy(_ => 1)
-            .Select(group => new ExchangeRateDateCoverage(
-                group.Min(rate => rate.RateDate),
-                group.Max(rate => rate.RateDate)))
+            .Select(checkpoint => new ExchangeRateBackfillState(
+                checkpoint.CompletedThroughDate,
+                checkpoint.CompletedAtUtc))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task MarkBackfillCompletedAsync(
+        DateOnly completedThroughDate,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var checkpoint = await dbContext.ExchangeRateBackfillCheckpoints
             .SingleOrDefaultAsync(cancellationToken);
 
-        return coverage ?? new ExchangeRateDateCoverage(null, null);
+        if (checkpoint is null)
+        {
+            dbContext.ExchangeRateBackfillCheckpoints.Add(
+                new ExchangeRateBackfillCheckpoint(
+                    completedThroughDate,
+                    completedAtUtc));
+        }
+        else
+        {
+            checkpoint.MarkCompleted(completedThroughDate, completedAtUtc);
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (IsSqlServerUniqueConstraintViolation(exception))
+        {
+            // A second application instance created the singleton checkpoint.
+            // Re-read it and advance it exactly once without regressing the date.
+            dbContext.ChangeTracker.Clear();
+            checkpoint = await dbContext.ExchangeRateBackfillCheckpoints
+                .SingleAsync(cancellationToken);
+            checkpoint.MarkCompleted(completedThroughDate, completedAtUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<ExchangeRateUpsertResult> UpsertAsync(
@@ -37,6 +72,24 @@ public sealed class EfExchangeRateStore(
             .Select(group => group.MaxBy(rate => rate.SourceUpdatedAt)!)
             .ToArray();
 
+        try
+        {
+            return await UpsertOnceAsync(incomingRates, cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (IsSqlServerUniqueConstraintViolation(exception))
+        {
+            // Another startup/job instance inserted the same business key
+            // after our read. Detach the failed state and re-read exactly once.
+            dbContext.ChangeTracker.Clear();
+            return await UpsertOnceAsync(incomingRates, cancellationToken);
+        }
+    }
+
+    private async Task<ExchangeRateUpsertResult> UpsertOnceAsync(
+        IReadOnlyCollection<ExchangeRate> incomingRates,
+        CancellationToken cancellationToken)
+    {
         var firstRateDate = incomingRates.Min(rate => rate.RateDate);
         var lastRateDate = incomingRates.Max(rate => rate.RateDate);
         var baseCurrencyCodes = incomingRates
@@ -107,6 +160,21 @@ public sealed class EfExchangeRateStore(
             insertedCount,
             updatedCount,
             unchangedCount);
+    }
+
+    private static bool IsSqlServerUniqueConstraintViolation(Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is SqlException { Number: 2601 or 2627 })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static ExchangeRateKey CreateKey(ExchangeRate exchangeRate) =>

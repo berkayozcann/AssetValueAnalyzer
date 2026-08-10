@@ -10,12 +10,14 @@ namespace AssetValueAnalyzer.Web.Controllers;
 
 public class HomeController(
     IReportWorkspaceSession reportWorkspaceSession,
-    ICurrentUsdExchangeRateReader currentRateReader) : Controller
+    ICurrentUsdExchangeRateReader currentRateReader,
+    TimeProvider timeProvider) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
     {
         var exchangeRate = ExchangeRateCardViewModelFactory.Create(
-            await currentRateReader.ReadAsync(cancellationToken));
+            await currentRateReader.ReadAsync(cancellationToken),
+            timeProvider);
 
         return View(DashboardPageViewModel.FromSnapshot(
             reportWorkspaceSession.Get(),

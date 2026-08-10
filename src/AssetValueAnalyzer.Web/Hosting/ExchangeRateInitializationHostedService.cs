@@ -19,10 +19,10 @@ public sealed class ExchangeRateInitializationHostedService(
             var result = await initializationService.InitializeAsync(stoppingToken);
 
             logger.LogInformation(
-                "Exchange-rate initialization completed. Previous latest date: {PreviousLatestDate}; " +
+                "Exchange-rate initialization completed. Previous all-currency checkpoint: {PreviousCompletedThroughDate}; " +
                 "requested range: {StartDate} - {EndDate}; received: {ReceivedCount}; " +
                 "inserted: {InsertedCount}; updated: {UpdatedCount}; unchanged: {UnchangedCount}.",
-                result.PreviouslyLatestRateDate,
+                result.PreviouslyCompletedThroughDate,
                 result.RequestedStartDate,
                 result.RequestedEndDate,
                 result.Synchronization.ReceivedCount,

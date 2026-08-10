@@ -7,8 +7,12 @@ public static class ExchangeRateCardViewModelFactory
 {
     private static readonly CultureInfo TurkishCulture = CultureInfo.GetCultureInfo("tr-TR");
 
-    public static ExchangeRateCardViewModel Create(CurrentUsdExchangeRate? rate)
+    public static ExchangeRateCardViewModel Create(
+        CurrentUsdExchangeRate? rate,
+        TimeProvider timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
         if (rate is null)
         {
             return new(
@@ -26,6 +30,7 @@ public static class ExchangeRateCardViewModelFactory
             var previous when rate.Value < previous => ExchangeRateTrend.Decreased,
             _ => ExchangeRateTrend.Unchanged
         };
+        var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
 
         return new(
             FormattedRate: rate.Value.ToString("N4", TurkishCulture),
@@ -37,6 +42,10 @@ public static class ExchangeRateCardViewModelFactory
                 _ => "Karşılaştırma için önceki kur verisi bulunmuyor."
             },
             LastSyncText: $"Son kontrol · {rate.RetrievedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}",
-            Trend: trend);
+            Trend: trend)
+        {
+            RateDateText = $"Kur tarihi · {rate.RateDate:dd.MM.yyyy}",
+            IsAwaitingCurrentDayRate = rate.RateDate < today
+        };
     }
 }
