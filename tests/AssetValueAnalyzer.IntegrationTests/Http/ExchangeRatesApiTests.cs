@@ -36,6 +36,8 @@ public sealed class ExchangeRatesApiTests(
         Assert.DoesNotContain(
             factory.Services.GetServices<IHostedService>(),
             service => service.GetType().Namespace?.StartsWith("Hangfire", StringComparison.Ordinal) == true);
+        Assert.Equal(0, factory.DatabaseStartup.ApplyMigrationsCallCount);
+        Assert.Equal(1, factory.DatabaseStartup.EnsureReadyCallCount);
     }
 
     [Fact]

@@ -36,6 +36,7 @@ public sealed class DependencyInjectionTests
             .Build();
         var services = new ServiceCollection();
 
+        services.AddLogging();
         services.AddExchangeRateReadServices(configuration);
 
         using var provider = services.BuildServiceProvider(
@@ -48,6 +49,8 @@ public sealed class DependencyInjectionTests
 
         Assert.IsType<EfExchangeRateReader>(
             scope.ServiceProvider.GetRequiredService<IExchangeRateReader>());
+        Assert.IsType<EfDatabaseStartupService>(
+            scope.ServiceProvider.GetRequiredService<IDatabaseStartupService>());
         Assert.True(scope.ServiceProvider
             .GetRequiredService<AssetValueAnalyzerDbContext>()
             .Database

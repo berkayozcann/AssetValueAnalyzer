@@ -1,5 +1,6 @@
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Infrastructure;
+using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
 using AssetValueAnalyzer.Web.Features.Reports;
 using AssetValueAnalyzer.Web.Hosting;
@@ -27,6 +28,8 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<ExchangeRateInitializationHostedService>();
 
 var app = builder.Build();
+
+await app.Services.ApplyDatabaseMigrationsAsync();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

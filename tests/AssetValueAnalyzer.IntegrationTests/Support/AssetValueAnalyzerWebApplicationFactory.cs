@@ -4,6 +4,7 @@ using AssetValueAnalyzer.Application.ExchangeRates.External;
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.Web.Hosting;
+using AssetValueAnalyzer.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -18,11 +19,26 @@ public sealed class AssetValueAnalyzerWebApplicationFactory
 {
     public const string TestingEnvironmentName = "Testing";
 
+    public AssetValueAnalyzerWebApplicationFactory()
+        : this(new DatabaseStartupProbe())
+    {
+    }
+
+    internal AssetValueAnalyzerWebApplicationFactory(DatabaseStartupProbe databaseStartup)
+    {
+        DatabaseStartup = databaseStartup;
+    }
+
+    public DatabaseStartupProbe DatabaseStartup { get; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(TestingEnvironmentName);
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IDatabaseStartupService>();
+            services.AddSingleton<IDatabaseStartupService>(DatabaseStartup);
+
             var initializationHostedService = services.SingleOrDefault(descriptor =>
                 descriptor.ServiceType == typeof(IHostedService) &&
                 descriptor.ImplementationType == typeof(ExchangeRateInitializationHostedService));

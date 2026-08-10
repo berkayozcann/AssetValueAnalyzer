@@ -49,6 +49,8 @@ public sealed partial class WebApplicationSmokeTests(
             hostedServices,
             service => service.GetType().Namespace?.StartsWith("Hangfire", StringComparison.Ordinal) == true);
         Assert.Contains("BlockedFinmaksExchangeRateClient", finmaksClient.GetType().Name);
+        Assert.Equal(1, factory.DatabaseStartup.ApplyMigrationsCallCount);
+        Assert.Equal(0, factory.DatabaseStartup.EnsureReadyCallCount);
     }
 
     [Fact]

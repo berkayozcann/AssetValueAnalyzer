@@ -1,6 +1,7 @@
 extern alias ApiApp;
 
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
+using AssetValueAnalyzer.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -14,11 +15,26 @@ public sealed class AssetValueAnalyzerApiApplicationFactory
 {
     public const string TestingEnvironmentName = "Testing";
 
+    public AssetValueAnalyzerApiApplicationFactory()
+        : this(new DatabaseStartupProbe())
+    {
+    }
+
+    internal AssetValueAnalyzerApiApplicationFactory(DatabaseStartupProbe databaseStartup)
+    {
+        DatabaseStartup = databaseStartup;
+    }
+
+    public DatabaseStartupProbe DatabaseStartup { get; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(TestingEnvironmentName);
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IDatabaseStartupService>();
+            services.AddSingleton<IDatabaseStartupService>(DatabaseStartup);
+
             services.RemoveAll<IExchangeRateReader>();
             services.AddSingleton<IExchangeRateReader>(new FakeExchangeRateReader());
         });

@@ -130,6 +130,7 @@ public static class DependencyInjection
 
         services.AddDbContext<AssetValueAnalyzerDbContext>(options =>
             options.UseSqlServer(connectionString));
+        services.AddScoped<IDatabaseStartupService, EfDatabaseStartupService>();
         services.AddScoped<IExchangeRateReader, EfExchangeRateReader>();
 
         return services;
