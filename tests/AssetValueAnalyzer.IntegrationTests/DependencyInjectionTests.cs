@@ -5,6 +5,7 @@ using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Application.Reports.Calculation;
 using AssetValueAnalyzer.Application.Reports.Creation;
+using AssetValueAnalyzer.Application.Reports.Exporting;
 using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
@@ -12,6 +13,7 @@ using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
+using AssetValueAnalyzer.Infrastructure.Reports.Exporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -109,6 +111,8 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IExchangeRateReader>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<CreateFinancialImpactReportService>());
+        Assert.IsType<XlsxFinancialImpactReportExporter>(
+            scope.ServiceProvider.GetRequiredService<IFinancialImpactReportExporter>());
         Assert.Same(
             TimeProvider.System,
             scope.ServiceProvider.GetRequiredService<TimeProvider>());

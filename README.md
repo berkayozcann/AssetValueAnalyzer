@@ -20,6 +20,7 @@ Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
   kurları entity'den ayrılmış DTO ve `ProblemDetails` sözleşmesiyle sunma.
 - Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
 - Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
+- Tamamlanan 14 kolonlu finansal detay raporunu biçimlendirilmiş XLSX olarak indirme.
 - Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
 - Tarih aralığı ve eksik ay doğrulaması.
 - Aylık son iş günü USD/TRY `CashChangeRate` seçimi ve en fazla 10 günlük geri arama.
@@ -275,6 +276,7 @@ pnpm run css:watch
 ## Ekranlar ve HTTP işlemleri
 
 - `GET /`: Kur kartı, Aylık Varlık Verisi/Yİ-ÜFE Endeks Verisi yükleme alanları ve finansal etki analizi akışı.
+- `GET /reports/download`: Session'daki tamamlanmış finansal etki raporunu XLSX dosyası olarak indirir.
 - `GET /exchange-rates/card`: SignalR bildirimi sonrası yeniden okunan kur kartı partial'ı.
 - `/hubs/exchange-rates`: Yalnız senkronizasyon tamamlanma bildirimi taşıyan SignalR hub'ı.
 - `GET /reports`: Boş, taslak veya tamamlanmış rapor çalışma alanı.

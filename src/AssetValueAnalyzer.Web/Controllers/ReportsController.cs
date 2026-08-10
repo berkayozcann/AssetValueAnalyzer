@@ -3,6 +3,7 @@ using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Application.Reports.Creation;
+using AssetValueAnalyzer.Application.Reports.Exporting;
 using AssetValueAnalyzer.Web.Features.Reports;
 using AssetValueAnalyzer.Web.Features.Shared;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,8 @@ public sealed class ReportsController(
     IReportWorkspaceSession reportWorkspaceSession,
     CreateFinancialImpactReportService createReportService,
     FinancialImpactReportRangeValidator rangeValidator,
-    ICurrentUsdExchangeRateReader currentRateReader) : Controller
+    ICurrentUsdExchangeRateReader currentRateReader,
+    IFinancialImpactReportExporter reportExporter) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
@@ -134,6 +136,21 @@ public sealed class ReportsController(
     {
         reportWorkspaceSession.Clear();
         return RedirectToAction("Index", "Home");
+    }
+
+    [HttpGet("download")]
+    public IActionResult Download()
+    {
+        var report = reportWorkspaceSession.Get().CompletedReport?.ExportData;
+
+        if (report is null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        var export = reportExporter.Export(report);
+
+        return File(export.Content, export.ContentType, export.FileName);
     }
 
     private void SetReportError(string message)

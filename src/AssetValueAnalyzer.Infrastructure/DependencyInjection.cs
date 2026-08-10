@@ -5,12 +5,14 @@ using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Application.Reports.Calculation;
 using AssetValueAnalyzer.Application.Reports.Creation;
+using AssetValueAnalyzer.Application.Reports.Exporting;
 using AssetValueAnalyzer.Infrastructure.BackgroundJobs;
 using AssetValueAnalyzer.Infrastructure.Imports.Assets;
 using AssetValueAnalyzer.Infrastructure.Imports.ProducerPriceIndices;
 using AssetValueAnalyzer.Infrastructure.Integrations.Finmaks;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Infrastructure.Persistence.ExchangeRates;
+using AssetValueAnalyzer.Infrastructure.Reports.Exporting;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +87,9 @@ public static class DependencyInjection
         services.AddScoped<IUsdCashChangeRateReader, EfUsdCashChangeRateReader>();
         services.AddScoped<ICurrentUsdExchangeRateReader, EfCurrentUsdExchangeRateReader>();
         services.AddScoped<CreateFinancialImpactReportService>();
+        services.AddSingleton<
+            IFinancialImpactReportExporter,
+            XlsxFinancialImpactReportExporter>();
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         if (configuration.GetValue<bool>(

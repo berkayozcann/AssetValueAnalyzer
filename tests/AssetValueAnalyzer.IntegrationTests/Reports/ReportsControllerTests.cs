@@ -3,6 +3,7 @@ using AssetValueAnalyzer.Application.ExchangeRates.Queries;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
 using AssetValueAnalyzer.Application.Reports.Calculation;
 using AssetValueAnalyzer.Application.Reports.Creation;
+using AssetValueAnalyzer.Infrastructure.Reports.Exporting;
 using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
 using AssetValueAnalyzer.Web.Features.Reports;
@@ -83,6 +84,16 @@ public sealed class ReportsControllerTests
     }
 
     [Fact]
+    public void Download_WithoutCompletedReport_RedirectsToReportsIndex()
+    {
+        var controller = CreateController(new TestReportWorkspaceSession());
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Download());
+
+        Assert.Equal(nameof(ReportsController.Index), result.ActionName);
+    }
+
+    [Fact]
     public async Task Create_WithValidatedWorkspace_CalculatesAndStoresRealReport()
     {
         var workspace = new TestReportWorkspaceSession();
@@ -120,7 +131,15 @@ public sealed class ReportsControllerTests
         Assert.Equal("47,2500", report.ExchangeRate.FormattedRate);
         Assert.Equal("USD / TRY", report.ExchangeRate.Label);
         Assert.True(report.ExchangeRate.HasRate);
+        Assert.NotNull(report.ExportData);
         Assert.True(Assert.IsType<bool>(controller.TempData["ResetReportWizard"]));
+
+        var download = Assert.IsType<FileContentResult>(controller.Download());
+        Assert.Equal(XlsxFinancialImpactReportExporter.XlsxContentType, download.ContentType);
+        Assert.Equal(
+            "finansal-etki-raporu-2021-12-2022-01.xlsx",
+            download.FileDownloadName);
+        Assert.NotEmpty(download.FileContents);
     }
 
     [Fact]
@@ -265,7 +284,8 @@ public sealed class ReportsControllerTests
                     47.25m,
                     new DateOnly(2026, 8, 8),
                     new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero),
-                    47m)));
+                    47m)),
+            new XlsxFinancialImpactReportExporter());
 
         controller.ControllerContext = new ControllerContext
         {

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.IntegrationTests.Support;
+using AssetValueAnalyzer.Infrastructure.Reports.Exporting;
 using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -230,6 +231,10 @@ public sealed partial class WebApplicationSmokeTests(
         var reportHtml = await reportResponse.Content.ReadAsStringAsync();
         var decodedReportHtml = WebUtility.HtmlDecode(reportHtml);
         var completedHomeHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
+        var downloadResponse = await client.GetAsync("/reports/download");
+        await using var downloadedStream = await downloadResponse.Content.ReadAsStreamAsync();
+        using var downloadedWorkbook = new XLWorkbook(downloadedStream);
+        var downloadedWorksheet = downloadedWorkbook.Worksheet("Finansal Etki Raporu");
 
         Assert.Equal(HttpStatusCode.OK, assetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
@@ -243,12 +248,32 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("aria-label=\"Bitiş ayı: Ocak 2022\"", decodedReportHtml);
         Assert.Contains("class=\"primary-button inline-flex h-10", reportHtml);
         Assert.Contains("data-new-analysis-action", reportHtml);
+        Assert.Contains("data-report-download", reportHtml);
+        Assert.Contains("href=\"/reports/download\"", reportHtml);
+        Assert.Contains("sm:mr-auto", reportHtml);
         Assert.Contains("Finansal etki raporunuz hazır.", completedHomeHtml);
         Assert.Contains("class=\"primary-button inline-flex h-11", completedHomeHtml);
         Assert.Contains("data-new-analysis-action", completedHomeHtml);
         Assert.Equal(2, reportHtml.Split("data-report-row").Length - 1);
         Assert.Contains("md:sticky md:left-40 md:z-30", reportHtml);
         Assert.DoesNotContain("class=\"sticky left-40", reportHtml);
+        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
+        Assert.Equal(
+            XlsxFinancialImpactReportExporter.XlsxContentType,
+            downloadResponse.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "attachment",
+            downloadResponse.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Contains(
+            "finansal-etki-raporu-2021-12-2022-01.xlsx",
+            downloadResponse.Content.Headers.ContentDisposition?.ToString());
+        Assert.Equal(14, downloadedWorksheet.Row(4).CellsUsed().Count());
+        Assert.Equal(new DateTime(2021, 12, 1), downloadedWorksheet.Cell(5, 1).GetDateTime());
+        Assert.Equal(1_000_000m, downloadedWorksheet.Cell(5, 2).GetValue<decimal>());
+        Assert.Equal(XLDataType.Number, downloadedWorksheet.Cell(5, 3).DataType);
+        Assert.Equal(0m, downloadedWorksheet.Cell(5, 3).GetValue<decimal>());
+        Assert.Equal(new DateTime(2022, 1, 1), downloadedWorksheet.Cell(6, 1).GetDateTime());
+        Assert.Equal(1_050_000m, downloadedWorksheet.Cell(6, 2).GetValue<decimal>());
 
         var describedTooltipIds = TooltipDescriptionPattern()
             .Matches(reportHtml)

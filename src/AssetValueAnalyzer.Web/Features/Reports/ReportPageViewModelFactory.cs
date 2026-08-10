@@ -72,7 +72,8 @@ public static class ReportPageViewModelFactory
             StartMonth: firstRow.Month,
             EndMonth: lastRow.Month,
             AvailableStartMonth: availableStartMonth ?? firstRow.Month,
-            AvailableEndMonth: availableEndMonth ?? lastRow.Month);
+            AvailableEndMonth: availableEndMonth ?? lastRow.Month,
+            ExportData: report);
     }
 
     private static ReportKpiViewModel CreateRateKpi(

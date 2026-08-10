@@ -1,3 +1,4 @@
+using AssetValueAnalyzer.Application.Reports.Calculation;
 using AssetValueAnalyzer.Web.Features.Shared;
 
 namespace AssetValueAnalyzer.Web.Features.Reports;
@@ -10,7 +11,8 @@ public sealed record ReportPageViewModel(
     DateOnly StartMonth,
     DateOnly EndMonth,
     DateOnly AvailableStartMonth,
-    DateOnly AvailableEndMonth);
+    DateOnly AvailableEndMonth,
+    FinancialImpactReport? ExportData = null);
 
 public sealed record ReportKpiViewModel(
     string Label,
