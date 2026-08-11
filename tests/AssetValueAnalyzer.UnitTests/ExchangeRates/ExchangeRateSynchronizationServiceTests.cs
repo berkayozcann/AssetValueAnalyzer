@@ -47,6 +47,7 @@ public sealed class ExchangeRateSynchronizationServiceTests
         Assert.Equal(2, result.InsertedCount);
         Assert.Equal(0, result.UpdatedCount);
         Assert.Equal(0, result.UnchangedCount);
+        Assert.Equal([new DateOnly(2026, 8, 6)], result.ReceivedRateDates);
         Assert.Equal(request.StartDate, finmaksClient.StartDate);
         Assert.Equal(request.EndDate, finmaksClient.EndDate);
 

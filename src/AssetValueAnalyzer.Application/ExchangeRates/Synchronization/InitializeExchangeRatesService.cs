@@ -2,6 +2,9 @@ namespace AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 
 public sealed class InitializeExchangeRatesService
 {
+    private const int BackfillChunkYears = 1;
+    private const int MaximumExpectedRateGapInDays = 10;
+
     private readonly IExchangeRateStore _exchangeRateStore;
     private readonly ExchangeRateSynchronizationService _synchronizationService;
     private readonly TimeProvider _timeProvider;
@@ -32,47 +35,117 @@ public sealed class InitializeExchangeRatesService
                 "The completed exchange-rate backfill date cannot be later than today.");
         }
 
-        var request = CreateSynchronizationRequest(completedThroughDate, today);
-        var synchronizationResult = await _synchronizationService.SynchronizeAsync(
-            request,
-            cancellationToken);
+        if (completedThroughDate == today)
+        {
+            var currentDayResult = await _synchronizationService.SynchronizeAsync(
+                new SyncExchangeRatesRequest(),
+                cancellationToken);
 
-        if (request.StartDate.HasValue && synchronizationResult.ReceivedCount == 0)
+            await _exchangeRateStore.MarkBackfillCompletedAsync(
+                today,
+                _timeProvider.GetUtcNow(),
+                cancellationToken);
+
+            return new InitializeExchangeRatesResult(
+                completedThroughDate,
+                RequestedStartDate: null,
+                RequestedEndDate: null,
+                currentDayResult);
+        }
+
+        var firstRequestedDate = completedThroughDate ?? InitialBackfillDate;
+        var chunkStartDate = firstRequestedDate;
+        var aggregateResult = EmptySynchronizationResult();
+
+        while (chunkStartDate < today)
+        {
+            var chunkEndDate = Min(chunkStartDate.AddYears(BackfillChunkYears), today);
+            var request = new SyncExchangeRatesRequest(chunkStartDate, chunkEndDate);
+            var chunkResult = await _synchronizationService.SynchronizeAsync(
+                request,
+                cancellationToken);
+
+            ValidateChunkCoverage(chunkStartDate, chunkEndDate, chunkResult);
+
+            await _exchangeRateStore.MarkBackfillCompletedAsync(
+                chunkEndDate,
+                _timeProvider.GetUtcNow(),
+                cancellationToken);
+
+            aggregateResult = Combine(aggregateResult, chunkResult);
+            chunkStartDate = chunkEndDate;
+        }
+
+        return new InitializeExchangeRatesResult(
+            completedThroughDate,
+            firstRequestedDate,
+            today,
+            aggregateResult);
+    }
+
+    private static void ValidateChunkCoverage(
+        DateOnly startDate,
+        DateOnly endDate,
+        SyncExchangeRatesResult synchronizationResult)
+    {
+        if (synchronizationResult.ReceivedCount == 0)
         {
             throw new InvalidOperationException(
                 "The ranged exchange-rate synchronization returned no data; " +
                 "the all-currency backfill checkpoint was not advanced.");
         }
 
-        await _exchangeRateStore.MarkBackfillCompletedAsync(
-            today,
-            _timeProvider.GetUtcNow(),
-            cancellationToken);
+        var rateDates = synchronizationResult.ReceivedRateDates;
 
-        return new InitializeExchangeRatesResult(
-            completedThroughDate,
-            request.StartDate,
-            request.EndDate,
-            synchronizationResult);
+        if (rateDates.Count == 0 ||
+            rateDates[0] < startDate ||
+            rateDates[^1] > endDate)
+        {
+            throw new InvalidOperationException(
+                "The ranged exchange-rate synchronization returned dates outside " +
+                "the requested chunk; the all-currency backfill checkpoint was not advanced.");
+        }
+
+        var previousDate = startDate;
+
+        foreach (var rateDate in rateDates)
+        {
+            EnsureExpectedGap(previousDate, rateDate);
+            previousDate = rateDate;
+        }
+
+        EnsureExpectedGap(previousDate, endDate);
     }
 
-    private static SyncExchangeRatesRequest CreateSynchronizationRequest(
-        DateOnly? completedThroughDate,
-        DateOnly today)
+    private static void EnsureExpectedGap(DateOnly previousDate, DateOnly nextDate)
     {
-        if (completedThroughDate is null)
+        if (nextDate.DayNumber - previousDate.DayNumber <= MaximumExpectedRateGapInDays)
         {
-            return new SyncExchangeRatesRequest(InitialBackfillDate, today);
+            return;
         }
 
-        if (completedThroughDate < today)
-        {
-            // Re-fetch the last completed day as a safe overlap. The request
-            // contains every currency pair returned by Finmaks for the range.
-            return new SyncExchangeRatesRequest(completedThroughDate, today);
-        }
-
-        // Omitting dates asks Finmaks for the current system day's latest rates.
-        return new SyncExchangeRatesRequest();
+        throw new InvalidOperationException(
+            "The ranged exchange-rate synchronization returned incomplete date coverage; " +
+            "the all-currency backfill checkpoint was not advanced.");
     }
+
+    private static SyncExchangeRatesResult EmptySynchronizationResult() =>
+        new(0, 0, 0, 0, []);
+
+    private static SyncExchangeRatesResult Combine(
+        SyncExchangeRatesResult aggregate,
+        SyncExchangeRatesResult current) =>
+        new(
+            aggregate.ReceivedCount + current.ReceivedCount,
+            aggregate.InsertedCount + current.InsertedCount,
+            aggregate.UpdatedCount + current.UpdatedCount,
+            aggregate.UnchangedCount + current.UnchangedCount,
+            aggregate.ReceivedRateDates
+                .Concat(current.ReceivedRateDates)
+                .Distinct()
+                .Order()
+                .ToArray());
+
+    private static DateOnly Min(DateOnly first, DateOnly second) =>
+        first <= second ? first : second;
 }

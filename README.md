@@ -13,8 +13,10 @@ etki raporunu web arayüzünde görüntüler veya XLSX olarak indirir.
 - Dosya boyutu, uzantı, içerik, tarih, sayı ve tekrar eden ay doğrulamaları.
 - Finmaks `ExchangeRates` listesindeki tüm para çiftlerinin ve kur alanlarının
   MSSQL'de idempotent olarak tutulması.
-- Uygulama başlangıcında Aralık 2021'den bugüne eksik tüm kur verilerinin tamamlanması.
-- Hangfire ile varsayılan üç dakikada bir güncel kur kontrolü.
+- Uygulama başlangıcında Aralık 2021'den bugüne eksik kur verilerinin, tarih
+  kapsamı doğrulanan yıllık parçalar hâlinde tamamlanması.
+- Hangfire ile varsayılan üç dakikada bir kur kontrolü; başlangıç yüklemesi geçici
+  olarak başarısız olmuşsa eksik tarihçenin aynı proses içinde yeniden denenmesi.
 - SignalR ile kur kartının sayfa yenilenmeden güncellenmesi.
 - Nominal değişim, dolarizasyon ve enflasyon etkisi hesaplamaları.
 - 14 kolonlu detaylı rapor, KPI özeti ve XLSX rapor çıktısı.
@@ -213,7 +215,9 @@ docker compose ps
 | Web | `http://localhost:5271` |
 | API | `http://localhost:5272` |
 | Web health | `http://localhost:5271/health` |
+| Web liveness | `http://localhost:5271/health/live` |
 | API health | `http://localhost:5272/health` |
+| API liveness | `http://localhost:5272/health/live` |
 | MSSQL | `localhost,1433` |
 
 Terminalden sağlık kontrolü:
@@ -224,6 +228,13 @@ curl http://localhost:5272/health
 ```
 
 Her iki isteğin de `Healthy` ve HTTP `200` döndürmesi beklenir.
+
+`/health` hazırlık kontrolüdür. Web için MSSQL bağlantısını ve tarihsel kur
+checkpoint'inin bugüne kadar tamamlanmış olmasını; API için MSSQL bağlantısını
+doğrular. Yalnız prosesin ayakta olup olmadığını kontrol etmek için ilgili
+hostun `/health/live` adresi kullanılabilir. İlk Finmaks backfill'i tamamlanamazsa
+Web readiness bilinçli olarak `503` kalır ve Compose API servisini hazır saymaz;
+üç dakikalık Hangfire işi eksik tarihçeyi yeniden dener.
 
 ### 4. Servisleri durdurun
 
@@ -402,6 +413,8 @@ değer olarak tutmak gerekmez.
 
 ### 5. Frontend paketlerini ve assetlerini hazırlayın
 
+macOS veya Linux terminalinde:
+
 ```bash
 cd src/AssetValueAnalyzer.Web
 pnpm install --frozen-lockfile
@@ -409,8 +422,20 @@ pnpm run assets:build
 cd ../..
 ```
 
+Windows PowerShell'de:
+
+```powershell
+Set-Location .\src\AssetValueAnalyzer.Web
+pnpm install --frozen-lockfile
+pnpm run assets:build
+Set-Location ..\..
+```
+
 İlk komut lock dosyasındaki tam frontend bağımlılıklarını kurar. İkinci komut
-Tailwind CSS, font ve SignalR browser dosyalarını `wwwroot` altına üretir.
+Tailwind CSS, font ve SignalR browser dosyalarını `wwwroot` altına üretir. Asset
+hazırlama adımı dosya ve klasör işlemlerini Node.js ile yaptığı için macOS, Linux
+ve Windows'ta aynı `pnpm run assets:build` komutu çalışır; `cp`, `mkdir` veya
+başka bir Unix komutu gerekmez.
 
 ### 6. .NET solution'ını hazırlayın
 
@@ -553,12 +578,27 @@ bu secret store'u otomatik olarak configuration'a ekler.
 
 ### 4. Frontend paketlerini ve assetlerini hazırlayın
 
+macOS veya Linux terminalinde:
+
 ```bash
 cd src/AssetValueAnalyzer.Web
 pnpm install --frozen-lockfile
 pnpm run assets:build
 cd ../..
 ```
+
+Windows PowerShell'de:
+
+```powershell
+Set-Location .\src\AssetValueAnalyzer.Web
+pnpm install --frozen-lockfile
+pnpm run assets:build
+Set-Location ..\..
+```
+
+Asset hazırlama adımı bütün işletim sistemlerinde Node.js üzerinden aynı font,
+SignalR ve Tailwind çıktılarını üretir; Windows'ta Unix `cp` veya `mkdir`
+komutlarına ihtiyaç duymaz.
 
 ### 5. .NET solution'ını hazırlayın
 
@@ -644,6 +684,7 @@ okur. EF entity'leri doğrudan dışarı verilmez; response DTO kullanılır.
 | Method | Endpoint | Açıklama |
 | --- | --- | --- |
 | `GET` | `/health` | API ve veritabanı hazırlık kontrolü |
+| `GET` | `/health/live` | Yalnız API prosesinin canlılık kontrolü |
 | `GET` | `/api/exchange-rates/latest` | En son veya belirli güne ait kur kayıtları |
 | `GET` | `/api/exchange-rates` | Tarih aralığındaki kur kayıtları |
 
@@ -716,11 +757,13 @@ dotnet test tests/AssetValueAnalyzer.IntegrationTests/AssetValueAnalyzer.Integra
 
 Son doğrulanan durum:
 
-- Unit: `44/44`
-- Integration: `110/110`
-- Toplam: `154/154`
-- API odaklı integration testleri: `13/13`
+- Unit: `46/46`
+- Integration: `119/119`
+- Toplam: `165/165`
+- API odaklı integration testleri: `14/14`
 - Build: `0` hata, `0` uyarı
+- İzole sıfır-DB Docker Compose smoke testi: migration, gerçek Finmaks backfill,
+  Web/API readiness-liveness ve USD/TRY API sorgusu başarılı
 
 Test ortamı gerçek Finmaks servisine, production MSSQL'e veya çalışan Hangfire
 kuyruğuna bağlanmaz. Dış bağımlılıklar kontrollü test double'larıyla değiştirilir.

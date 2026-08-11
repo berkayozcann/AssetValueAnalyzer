@@ -27,7 +27,7 @@
 <section class="app-shell pb-10 pt-10 lg:pt-12"
          data-reset-report-wizard="@(resetReportWizard ? "true" : "false")">
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-        <div class="max-w-3xl">
+        <div class="max-w-3xl" data-page-intro>
             <div class="flex flex-wrap items-center gap-4">
                 <h1 class="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">Finansal Etki Raporu</h1>
             </div>
@@ -41,7 +41,7 @@
         <partial name="_ExchangeRateCard" model="Model.ExchangeRate" />
     </div>
 
-    <div class="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:justify-end">
+    <div class="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:justify-end" data-page-body-motion>
         <a class="secondary-button inline-flex h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold sm:mr-auto sm:w-44"
            asp-controller="Reports"
            asp-action="Download"
@@ -64,7 +64,9 @@
         </form>
     </div>
 
-    <section class="mt-7 grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Finansal etki raporu özeti">
+    <section class="mt-7 grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4"
+             data-page-body-motion
+             aria-label="Finansal etki raporu özeti">
         @foreach (var kpi in Model.Kpis)
         {
             var valueClass = kpi.Tone switch
@@ -116,7 +118,9 @@
         }
     </section>
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-line-700 bg-surface-900" aria-labelledby="monthly-details-heading">
+    <section class="mt-5 overflow-hidden rounded-xl border border-line-700 bg-surface-900"
+             data-page-body-motion
+             aria-labelledby="monthly-details-heading">
         <div class="flex flex-wrap items-center gap-4 border-b border-line-700 px-5 py-3">
             <h2 id="monthly-details-heading" class="text-xl font-semibold text-ink-900">Aylık Finansal Detaylar</h2>
             <p class="text-sm text-slate-400">@Model.Rows.Count ay</p>

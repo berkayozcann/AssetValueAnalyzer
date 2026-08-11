@@ -2,15 +2,23 @@ using AssetValueAnalyzer.Application.ExchangeRates.Synchronization;
 using AssetValueAnalyzer.Infrastructure;
 using AssetValueAnalyzer.Infrastructure.Persistence;
 using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
+using AssetValueAnalyzer.Web.HealthChecks;
 using AssetValueAnalyzer.Web.Features.Reports;
 using AssetValueAnalyzer.Web.Hosting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseReadinessHealthCheck>(
+        "database",
+        tags: ["ready"])
+    .AddCheck<ExchangeRateBackfillReadinessHealthCheck>(
+        "exchange-rate-backfill",
+        tags: ["ready"]);
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
@@ -54,7 +62,18 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks(
+    "/health",
+    new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("ready")
+    });
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
 
 app.MapHub<ExchangeRateHub>("/hubs/exchange-rates");
 

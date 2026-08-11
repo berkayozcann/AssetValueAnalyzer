@@ -2,11 +2,10 @@
   "name": "asset-value-analyzer-web",
   "private": true,
   "scripts": {
-    "assets:build": "pnpm run fonts:vendor && pnpm run css:build && pnpm run js:vendor",
+    "assets:build": "pnpm run assets:vendor && pnpm run css:build",
+    "assets:vendor": "node ./Assets/Scripts/vendor-assets.mjs",
     "css:build": "tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --minify",
-    "css:watch": "pnpm run fonts:vendor && tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --watch",
-    "fonts:vendor": "mkdir -p ./wwwroot/fonts/licenses && cp ./node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2 ./node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2 ./node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2 ./node_modules/@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2 ./wwwroot/fonts/ && cp ./node_modules/@fontsource-variable/inter/LICENSE ./wwwroot/fonts/licenses/inter-OFL.txt && cp ./node_modules/@fontsource-variable/manrope/LICENSE ./wwwroot/fonts/licenses/manrope-OFL.txt",
-    "js:vendor": "cp ./node_modules/@microsoft/signalr/dist/browser/signalr.min.js ./wwwroot/lib/signalr/signalr.min.js"
+    "css:watch": "pnpm run assets:vendor && tailwindcss -i ./Assets/Styles/app.css -o ./wwwroot/css/app.css --watch"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "5.3.0",

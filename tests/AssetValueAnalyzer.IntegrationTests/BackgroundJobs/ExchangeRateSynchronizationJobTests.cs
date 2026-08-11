@@ -11,18 +11,25 @@ public sealed class ExchangeRateSynchronizationJobTests
     [Fact]
     public async Task ExecuteAsync_SynchronizesCurrentDayWithoutExplicitDateRange()
     {
+        var utcNow = new DateTimeOffset(2026, 8, 9, 16, 30, 0, TimeSpan.Zero);
+        var today = new DateOnly(2026, 8, 9);
         var client = new CapturingFinmaksClient();
-        var store = new CapturingExchangeRateStore();
+        var store = new CapturingExchangeRateStore(
+            new ExchangeRateBackfillState(today, utcNow.AddMinutes(-3)));
+        var timeProvider = new FixedTimeProvider(utcNow);
         var synchronizationService = new ExchangeRateSynchronizationService(
             client,
             store,
             new InProcessExchangeRateSynchronizationLock(),
-            new FixedTimeProvider(
-                new DateTimeOffset(2026, 8, 9, 16, 30, 0, TimeSpan.Zero)));
+            timeProvider);
+        var initializationService = new InitializeExchangeRatesService(
+            store,
+            synchronizationService,
+            timeProvider);
         var notifier = new CapturingSynchronizationNotifier();
         var logger = new CapturingLogger<ExchangeRateSynchronizationJob>();
         var job = new ExchangeRateSynchronizationJob(
-            synchronizationService,
+            initializationService,
             notifier,
             logger);
 
@@ -41,7 +48,43 @@ public sealed class ExchangeRateSynchronizationJobTests
                 StringComparison.Ordinal));
     }
 
-    private sealed class CapturingFinmaksClient : IFinmaksExchangeRateClient
+    [Fact]
+    public async Task ExecuteAsync_WhenHistoricalCheckpointIsMissing_RetriesBackfillInSameProcess()
+    {
+        var utcNow = new DateTimeOffset(2021, 12, 15, 16, 30, 0, TimeSpan.Zero);
+        var today = new DateOnly(2021, 12, 15);
+        var client = new CapturingFinmaksClient(CreateCompleteResponse);
+        var store = new CapturingExchangeRateStore(state: null);
+        var timeProvider = new FixedTimeProvider(utcNow);
+        var synchronizationService = new ExchangeRateSynchronizationService(
+            client,
+            store,
+            new InProcessExchangeRateSynchronizationLock(),
+            timeProvider);
+        var initializationService = new InitializeExchangeRatesService(
+            store,
+            synchronizationService,
+            timeProvider);
+        var notifier = new CapturingSynchronizationNotifier();
+        var logger = new CapturingLogger<ExchangeRateSynchronizationJob>();
+        var job = new ExchangeRateSynchronizationJob(
+            initializationService,
+            notifier,
+            logger);
+
+        await job.ExecuteAsync(CancellationToken.None);
+
+        Assert.Equal(
+            InitializeExchangeRatesService.InitialBackfillDate,
+            client.StartDate);
+        Assert.Equal(today, client.EndDate);
+        Assert.Equal(today, store.MarkedCompletedThroughDate);
+        Assert.Equal(1, notifier.CallCount);
+    }
+
+    private sealed class CapturingFinmaksClient(
+        Func<DateOnly?, DateOnly?, IReadOnlyList<ExchangeRateQuote>>? responseFactory = null)
+        : IFinmaksExchangeRateClient
     {
         public bool WasCalled { get; private set; }
 
@@ -58,23 +101,33 @@ public sealed class ExchangeRateSynchronizationJobTests
             StartDate = startDate;
             EndDate = endDate;
 
-            return Task.FromResult<IReadOnlyList<ExchangeRateQuote>>([]);
+            IReadOnlyList<ExchangeRateQuote> result = responseFactory is null
+                ? []
+                : responseFactory(startDate, endDate);
+
+            return Task.FromResult(result);
         }
     }
 
-    private sealed class CapturingExchangeRateStore : IExchangeRateStore
+    private sealed class CapturingExchangeRateStore(
+        ExchangeRateBackfillState? state) : IExchangeRateStore
     {
         public int CallCount { get; private set; }
 
+        public DateOnly? MarkedCompletedThroughDate { get; private set; }
+
         public Task<ExchangeRateBackfillState?> GetBackfillStateAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<ExchangeRateBackfillState?>(null);
+            Task.FromResult(state);
 
         public Task MarkBackfillCompletedAsync(
             DateOnly completedThroughDate,
             DateTimeOffset completedAtUtc,
-            CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            MarkedCompletedThroughDate = completedThroughDate;
+            return Task.CompletedTask;
+        }
 
         public Task<ExchangeRateUpsertResult> UpsertAsync(
             IReadOnlyCollection<ExchangeRate> exchangeRates,
@@ -119,5 +172,33 @@ public sealed class ExchangeRateSynchronizationJobTests
             Exception? exception,
             Func<TState, Exception?, string> formatter) =>
             Messages.Add(formatter(state, exception));
+    }
+
+    private static IReadOnlyList<ExchangeRateQuote> CreateCompleteResponse(
+        DateOnly? startDate,
+        DateOnly? endDate)
+    {
+        Assert.True(startDate.HasValue);
+        Assert.True(endDate.HasValue);
+
+        var quotes = new List<ExchangeRateQuote>();
+
+        for (var date = startDate.Value; date <= endDate.Value; date = date.AddDays(1))
+        {
+            quotes.Add(
+                new ExchangeRateQuote(
+                    BaseCurrencyCode: 1,
+                    ForeignCurrencyCode: 56,
+                    ChangeRate: 45m,
+                    ExchangeRateValue: 46m,
+                    CashChangeRate: 45.5m,
+                    CashExchangeRate: 46.5m,
+                    CentralBankChangeRate: 45.2m,
+                    CentralBankExchangeRate: 45.8m,
+                    CrossRate: 1m,
+                    SourceUpdatedAt: date.ToDateTime(new TimeOnly(8, 0))));
+        }
+
+        return quotes;
     }
 }

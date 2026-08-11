@@ -50,7 +50,12 @@ public sealed class ExchangeRateSynchronizationService
             exchangeRates.Length,
             upsertResult.InsertedCount,
             upsertResult.UpdatedCount,
-            upsertResult.UnchangedCount);
+            upsertResult.UnchangedCount,
+            exchangeRates
+                .Select(exchangeRate => exchangeRate.RateDate)
+                .Distinct()
+                .Order()
+                .ToArray());
     }
 
     private static ExchangeRate CreateExchangeRate(

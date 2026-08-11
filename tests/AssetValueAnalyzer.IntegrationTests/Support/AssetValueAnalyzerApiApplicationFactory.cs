@@ -37,6 +37,7 @@ public sealed class AssetValueAnalyzerApiApplicationFactory
 
             services.RemoveAll<IExchangeRateReader>();
             services.AddSingleton<IExchangeRateReader>(new FakeExchangeRateReader());
+            services.ReplaceReadinessChecksWithHealthyProbe();
         });
     }
 

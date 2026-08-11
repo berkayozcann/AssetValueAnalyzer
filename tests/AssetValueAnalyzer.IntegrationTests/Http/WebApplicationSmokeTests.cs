@@ -13,6 +13,7 @@ using AssetValueAnalyzer.Web.Features.ExchangeRates.Realtime;
 using AssetValueAnalyzer.Web.Hosting;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -77,6 +78,28 @@ public sealed partial class WebApplicationSmokeTests(
     }
 
     [Fact]
+    public async Task LivenessEndpoint_RemainsHealthyWhenReadinessIsUnhealthy()
+    {
+        using var baseFactory = new AssetValueAnalyzerWebApplicationFactory();
+        using var unhealthyFactory = baseFactory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.ReplaceReadinessChecksWithUnhealthyProbe()));
+        using var client = unhealthyFactory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        var readinessResponse = await client.GetAsync("/health");
+        var livenessResponse = await client.GetAsync("/health/live");
+        var body = await livenessResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, readinessResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, livenessResponse.StatusCode);
+        Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
     public async Task HomePage_UsesRealPipelineAndReturnsAntiforgeryToken()
     {
         using var client = CreateClient();
@@ -114,7 +137,7 @@ public sealed partial class WebApplicationSmokeTests(
     }
 
     [Fact]
-    public async Task SharedStyles_AnimateOnlyAppControlledNavigation_NotRefresh()
+    public async Task SharedStyles_AnimateAppNavigationAndPageIntro()
     {
         using var client = CreateClient();
 
@@ -124,13 +147,21 @@ public sealed partial class WebApplicationSmokeTests(
 
         Assert.DoesNotContain("@view-transition", css);
         Assert.DoesNotContain("page-fallback-enter", css);
+        Assert.DoesNotContain("data-wizard-ready=false", css);
         Assert.DoesNotContain("pageTransition", html);
         Assert.Contains("AssetValueAnalyzer.Navigation.Pending", html);
         Assert.Contains("window.sessionStorage.removeItem(\"AssetValueAnalyzer.Navigation.Pending\")", html);
-        Assert.Contains("[data-app-navigation=entering] main", css);
+        Assert.Contains("[data-app-navigation=entering] [data-page-body-motion]", css);
         Assert.Contains("[data-app-navigation=leaving] main", css);
         Assert.Contains("app-page-enter", css);
+        Assert.Contains("app-page-intro-enter", css);
+        Assert.Contains("app-rate-card-enter", css);
+        Assert.Contains("[data-page-intro]", css);
+        Assert.Contains("data-page-intro", html);
+        Assert.Contains("data-page-body-motion", html);
+        Assert.Contains("data-page-rate-card", html);
         Assert.Contains("const beginAppNavigation = (navigate) =>", javascript);
+        Assert.Contains("prefers-reduced-motion: reduce", javascript);
         Assert.Contains("window.location.assign(url.href)", javascript);
         Assert.Contains("document.addEventListener(\"submit\"", javascript);
         Assert.Contains("anchor.matches(\"[data-report-download]\")", javascript);
@@ -158,6 +189,9 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("const serverRenderedStep = Number(wizard.dataset.initialStep);", javascript);
         Assert.Contains("state.step = requestedInitialStep;", javascript);
         Assert.Contains("const persistWizardState = () =>", javascript);
+        Assert.Contains("let pendingWizardStateBody = null;", javascript);
+        Assert.Contains("while (pendingWizardStateBody)", javascript);
+        Assert.Contains("pendingWizardStateBody = body;", javascript);
         Assert.Contains("keepalive: true", javascript);
         Assert.Contains("wizard.dataset.wizardReady = \"true\";", javascript);
         Assert.DoesNotContain("wizardStorageKeys", javascript);
@@ -177,6 +211,9 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("rangeContinueButton.setAttribute(\"aria-busy\", String(isValidating));", javascript);
         Assert.Contains("continueButton.disabled = state.reportLocked || !(", javascript);
         Assert.Contains("state.rangeValidationState !== \"validating\"", javascript);
+        Assert.Matches(
+            """const validateWizardRange = async \(\) => \{\s+const requestId = \+\+state\.rangeValidationRequestId;\s+const localError""",
+            javascript);
     }
 
     [Fact]

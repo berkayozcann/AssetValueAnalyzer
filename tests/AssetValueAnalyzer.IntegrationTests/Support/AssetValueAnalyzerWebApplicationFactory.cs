@@ -61,6 +61,7 @@ public sealed class AssetValueAnalyzerWebApplicationFactory
             services.RemoveAll<IFinmaksExchangeRateClient>();
             services.AddSingleton<IFinmaksExchangeRateClient>(
                 new BlockedFinmaksExchangeRateClient());
+            services.ReplaceReadinessChecksWithHealthyProbe();
         });
     }
 

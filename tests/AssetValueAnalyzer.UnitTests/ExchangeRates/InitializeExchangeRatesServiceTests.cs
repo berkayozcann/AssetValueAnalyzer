@@ -21,8 +21,13 @@ public sealed class InitializeExchangeRatesServiceTests
             InitializeExchangeRatesService.InitialBackfillDate,
             result.RequestedStartDate);
         Assert.Equal(new DateOnly(2026, 8, 7), result.RequestedEndDate);
-        Assert.Equal(result.RequestedStartDate, fixture.Client.StartDate);
-        Assert.Equal(result.RequestedEndDate, fixture.Client.EndDate);
+        Assert.Equal(result.RequestedStartDate, fixture.Client.Requests[0].StartDate);
+        Assert.Equal(result.RequestedEndDate, fixture.Client.Requests[^1].EndDate);
+        Assert.True(fixture.Client.Requests.Count > 1);
+        Assert.All(
+            fixture.Client.Requests,
+            request => Assert.True(
+                request.EndDate!.Value.DayNumber - request.StartDate!.Value.DayNumber <= 366));
         Assert.Equal(new DateOnly(2026, 8, 7), fixture.Store.MarkedCompletedThroughDate);
         Assert.Equal(UtcNow, fixture.Store.MarkedCompletedAtUtc);
     }
@@ -52,8 +57,8 @@ public sealed class InitializeExchangeRatesServiceTests
         Assert.Equal(today, result.PreviouslyCompletedThroughDate);
         Assert.Null(result.RequestedStartDate);
         Assert.Null(result.RequestedEndDate);
-        Assert.Null(fixture.Client.StartDate);
-        Assert.Null(fixture.Client.EndDate);
+        Assert.Null(fixture.Client.Requests.Single().StartDate);
+        Assert.Null(fixture.Client.Requests.Single().EndDate);
         Assert.Equal(today, fixture.Store.MarkedCompletedThroughDate);
     }
 
@@ -96,21 +101,65 @@ public sealed class InitializeExchangeRatesServiceTests
         Assert.Null(fixture.Store.MarkedCompletedThroughDate);
     }
 
+    [Fact]
+    public async Task InitializeAsync_WhenLaterChunkHasIncompleteCoverage_StopsAtLastCompletedChunk()
+    {
+        var secondChunkStart = InitializeExchangeRatesService.InitialBackfillDate
+            .AddYears(1);
+        var fixture = new Fixture(
+            completedThroughDate: null,
+            responseFactory: (startDate, endDate) =>
+                startDate == secondChunkStart
+                    ? [CreateQuote(endDate!.Value)]
+                    : CreateCompleteResponse(startDate, endDate));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fixture.Service.InitializeAsync(CancellationToken.None));
+
+        Assert.Contains("incomplete date coverage", exception.Message);
+        Assert.Equal(2, fixture.Client.Requests.Count);
+        Assert.Equal(secondChunkStart, fixture.Store.MarkedCompletedThroughDate);
+        Assert.NotEqual(new DateOnly(2026, 8, 7), fixture.Store.MarkedCompletedThroughDate);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WeekendTailWithoutNewRate_CompletesProcessedCalendarRange()
+    {
+        var friday = new DateOnly(2026, 8, 7);
+        var sundayUtc = new DateTimeOffset(2026, 8, 9, 9, 30, 0, TimeSpan.Zero);
+        var fixture = new Fixture(
+            completedThroughDate: friday,
+            responseFactory: (_, _) => [CreateQuote(friday)],
+            utcNow: sundayUtc);
+
+        var result = await fixture.Service.InitializeAsync(CancellationToken.None);
+
+        Assert.Equal(friday, result.RequestedStartDate);
+        Assert.Equal(new DateOnly(2026, 8, 9), result.RequestedEndDate);
+        Assert.Equal(new DateOnly(2026, 8, 9), fixture.Store.MarkedCompletedThroughDate);
+    }
+
     private sealed class Fixture
     {
         public Fixture(
             DateOnly? completedThroughDate,
             Exception? clientException = null,
-            bool returnEmptyResponse = false)
+            bool returnEmptyResponse = false,
+            Func<DateOnly?, DateOnly?, IReadOnlyList<ExchangeRateQuote>>? responseFactory = null,
+            DateTimeOffset? utcNow = null)
         {
-            Client = new CapturingFinmaksClient(clientException, returnEmptyResponse);
+            var currentUtc = utcNow ?? UtcNow;
+            Client = new CapturingFinmaksClient(
+                clientException,
+                returnEmptyResponse,
+                responseFactory);
             Store = new StubExchangeRateStore(
                 completedThroughDate is null
                     ? null
                     : new ExchangeRateBackfillState(
                         completedThroughDate.Value,
-                        UtcNow.AddDays(-1)));
-            var timeProvider = new FixedTimeProvider(UtcNow);
+                        currentUtc.AddDays(-1)));
+            var timeProvider = new FixedTimeProvider(currentUtc);
             var synchronizationService = new ExchangeRateSynchronizationService(
                 Client,
                 Store,
@@ -132,13 +181,13 @@ public sealed class InitializeExchangeRatesServiceTests
 
     private sealed class CapturingFinmaksClient(
         Exception? exception = null,
-        bool returnEmptyResponse = false) : IFinmaksExchangeRateClient
+        bool returnEmptyResponse = false,
+        Func<DateOnly?, DateOnly?, IReadOnlyList<ExchangeRateQuote>>? responseFactory = null)
+        : IFinmaksExchangeRateClient
     {
         public bool WasCalled { get; private set; }
 
-        public DateOnly? StartDate { get; private set; }
-
-        public DateOnly? EndDate { get; private set; }
+        public List<(DateOnly? StartDate, DateOnly? EndDate)> Requests { get; } = [];
 
         public Task<IReadOnlyList<ExchangeRateQuote>> GetRatesAsync(
             DateOnly? startDate = null,
@@ -146,8 +195,7 @@ public sealed class InitializeExchangeRatesServiceTests
             CancellationToken cancellationToken = default)
         {
             WasCalled = true;
-            StartDate = startDate;
-            EndDate = endDate;
+            Requests.Add((startDate, endDate));
 
             if (exception is not null)
             {
@@ -156,20 +204,8 @@ public sealed class InitializeExchangeRatesServiceTests
 
             IReadOnlyList<ExchangeRateQuote> result = returnEmptyResponse
                 ? []
-                :
-                [
-                    new(
-                        BaseCurrencyCode: 1,
-                        ForeignCurrencyCode: 56,
-                        ChangeRate: 45m,
-                        ExchangeRateValue: 46m,
-                        CashChangeRate: 45.5m,
-                        CashExchangeRate: 46.5m,
-                        CentralBankChangeRate: 45.2m,
-                        CentralBankExchangeRate: 45.8m,
-                        CrossRate: 1m,
-                        SourceUpdatedAt: new DateTime(2026, 8, 7, 8, 0, 0))
-                ];
+                : responseFactory?.Invoke(startDate, endDate) ??
+                  CreateCompleteResponse(startDate, endDate);
 
             return Task.FromResult(result);
         }
@@ -206,4 +242,36 @@ public sealed class InitializeExchangeRatesServiceTests
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
+
+    private static IReadOnlyList<ExchangeRateQuote> CreateCompleteResponse(
+        DateOnly? startDate,
+        DateOnly? endDate)
+    {
+        if (!startDate.HasValue || !endDate.HasValue)
+        {
+            return [CreateQuote(new DateOnly(2026, 8, 7))];
+        }
+
+        var quotes = new List<ExchangeRateQuote>();
+
+        for (var date = startDate.Value; date <= endDate.Value; date = date.AddDays(1))
+        {
+            quotes.Add(CreateQuote(date));
+        }
+
+        return quotes;
+    }
+
+    private static ExchangeRateQuote CreateQuote(DateOnly rateDate) =>
+        new(
+            BaseCurrencyCode: 1,
+            ForeignCurrencyCode: 56,
+            ChangeRate: 45m,
+            ExchangeRateValue: 46m,
+            CashChangeRate: 45.5m,
+            CashExchangeRate: 46.5m,
+            CentralBankChangeRate: 45.2m,
+            CentralBankExchangeRate: 45.8m,
+            CrossRate: 1m,
+            SourceUpdatedAt: rateDate.ToDateTime(new TimeOnly(8, 0)));
 }

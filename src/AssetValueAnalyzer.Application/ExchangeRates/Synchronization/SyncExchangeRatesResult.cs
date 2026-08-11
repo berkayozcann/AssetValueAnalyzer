@@ -4,4 +4,5 @@ public sealed record SyncExchangeRatesResult(
     int ReceivedCount,
     int InsertedCount,
     int UpdatedCount,
-    int UnchangedCount);
+    int UnchangedCount,
+    IReadOnlyList<DateOnly> ReceivedRateDates);

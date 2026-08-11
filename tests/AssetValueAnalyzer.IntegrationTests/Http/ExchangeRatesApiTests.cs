@@ -7,6 +7,7 @@ using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -49,6 +50,28 @@ public sealed class ExchangeRatesApiTests(
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
+    public async Task LivenessEndpoint_RemainsHealthyWhenDatabaseReadinessIsUnhealthy()
+    {
+        using var baseFactory = new AssetValueAnalyzerApiApplicationFactory();
+        using var unhealthyFactory = baseFactory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.ReplaceReadinessChecksWithUnhealthyProbe()));
+        using var client = unhealthyFactory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        var readinessResponse = await client.GetAsync("/health");
+        var livenessResponse = await client.GetAsync("/health/live");
+        var body = await livenessResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, readinessResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, livenessResponse.StatusCode);
         Assert.Equal("Healthy", body);
     }
 

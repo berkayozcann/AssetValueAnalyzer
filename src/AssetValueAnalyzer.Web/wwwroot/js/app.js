@@ -17,6 +17,11 @@
 
     appNavigationInProgress = true;
 
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigate();
+      return;
+    }
+
     try {
       window.sessionStorage.setItem(navigationMarkerKey, "true");
     } catch {
@@ -25,7 +30,7 @@
 
     document.documentElement.dataset.appNavigation = "leaving";
 
-    window.setTimeout(navigate, 190);
+    window.setTimeout(navigate, 260);
     window.setTimeout(() => {
       if (document.visibilityState !== "visible") {
         return;
@@ -48,7 +53,12 @@
   });
 
   document.addEventListener("animationend", (event) => {
-    if (event.animationName === "app-page-enter") {
+    if (
+      document.documentElement.dataset.appNavigation === "entering" &&
+      event.animationName === "app-page-enter" &&
+      event.target instanceof Element &&
+      event.target.matches("[data-page-body-motion]")
+    ) {
       delete document.documentElement.dataset.appNavigation;
     }
   });
@@ -813,6 +823,37 @@
   document.documentElement.dataset.reportWizardStep = String(requestedInitialStep);
   state.step = requestedInitialStep;
 
+  let pendingWizardStateBody = null;
+  let wizardStateRequestInFlight = false;
+
+  const flushWizardState = async () => {
+    if (wizardStateRequestInFlight) {
+      return;
+    }
+
+    wizardStateRequestInFlight = true;
+
+    try {
+      while (pendingWizardStateBody) {
+        const body = pendingWizardStateBody;
+        pendingWizardStateBody = null;
+
+        try {
+          await fetch(wizard.dataset.wizardStateUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body,
+            keepalive: true,
+          });
+        } catch {
+          // Görsel akış ağ hatasında kesilmez; mevcut sunucu durumu korunur.
+        }
+      }
+    } finally {
+      wizardStateRequestInFlight = false;
+    }
+  };
+
   const persistWizardState = () => {
     if (!wizard.dataset.wizardStateUrl) {
       return;
@@ -828,14 +869,8 @@
       body.set("__RequestVerificationToken", antiforgeryToken);
     }
 
-    void fetch(wizard.dataset.wizardStateUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body,
-      keepalive: true,
-    }).catch(() => {
-      // Görsel akış ağ hatasında kesilmez; mevcut sunucu durumu korunur.
-    });
+    pendingWizardStateBody = body;
+    void flushWizardState();
   };
 
   const getLocalRangeError = () => {
@@ -868,6 +903,7 @@
   };
 
   const validateWizardRange = async () => {
+    const requestId = ++state.rangeValidationRequestId;
     const localError = getLocalRangeError();
 
     if (localError) {
@@ -886,7 +922,6 @@
       return false;
     }
 
-    const requestId = ++state.rangeValidationRequestId;
     state.rangeValidationState = "validating";
     state.includedMonthCount = null;
     setRangeError("");

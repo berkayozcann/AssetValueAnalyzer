@@ -9,7 +9,7 @@
 
 <section class="app-shell flex min-h-[calc(100vh-5rem)] flex-col pb-8 pt-10 lg:pt-12">
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-        <div class="max-w-3xl">
+        <div class="max-w-3xl" data-page-intro>
             <h1 class="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">Finansal Etki Raporu</h1>
             <span class="mt-4 block h-1 w-16 rounded-full bg-brand-400" aria-hidden="true"></span>
             <p class="mt-5 max-w-3xl text-base leading-relaxed muted-copy sm:text-lg">Veri dosyalarınızın durumunu takip edin; finansal etki raporunuz hazır olduğunda nominal değişimi, dolarizasyon etkisini ve enflasyon etkisini bu sayfada inceleyin.</p>
@@ -20,7 +20,9 @@
 
     @if (Model.Status == ReportWorkspaceStatus.Empty)
     {
-        <section class="glass-panel mt-9 flex min-h-[27rem] flex-col justify-center overflow-hidden rounded-[2rem] px-6 py-12 text-center sm:px-10" aria-labelledby="empty-report-heading">
+        <section class="glass-panel mt-9 flex min-h-[27rem] flex-col justify-center overflow-hidden rounded-[2rem] px-6 py-12 text-center sm:px-10"
+                 data-page-body-motion
+                 aria-labelledby="empty-report-heading">
             <span class="glass-panel-ornament" aria-hidden="true"></span>
             <div class="mx-auto flex w-full max-w-4xl flex-col items-center">
                 <span class="text-brand-400" aria-hidden="true">
@@ -44,6 +46,7 @@
     else if (Model.Status == ReportWorkspaceStatus.Draft)
     {
         <section class="glass-panel mt-9 flex min-h-[27rem] flex-col justify-center overflow-hidden rounded-[2rem] px-6 py-11 sm:px-10 lg:px-12"
+                 data-page-body-motion
                  aria-labelledby="draft-report-heading"
                  data-ready-file-count="@Model.ReadyFileCount">
             <span class="glass-panel-ornament" aria-hidden="true"></span>
@@ -94,7 +97,7 @@
         </section>
     }
 
-    <section class="mt-auto pt-7" aria-labelledby="report-contents-heading">
+    <section class="mt-auto pt-7" data-page-body-motion aria-labelledby="report-contents-heading">
         <div class="rounded-2xl border border-line-700 bg-surface-900 px-6 py-6">
             <h2 id="report-contents-heading" class="text-xl font-semibold text-ink-900">Finansal etki raporunda neler bulunur?</h2>
             <div class="report-info-grid mt-5 grid sm:grid-cols-2 xl:grid-cols-4">
