@@ -114,6 +114,7 @@ public sealed class InitializeExchangeRatesServiceTests
             var synchronizationService = new ExchangeRateSynchronizationService(
                 Client,
                 Store,
+                new InProcessExchangeRateSynchronizationLock(),
                 timeProvider);
 
             Service = new InitializeExchangeRatesService(

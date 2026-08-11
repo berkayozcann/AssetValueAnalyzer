@@ -73,6 +73,9 @@ public static class DependencyInjection
             .RemoveAllLoggers();
 
         services.AddScoped<IExchangeRateStore, EfExchangeRateStore>();
+        services.AddSingleton<
+            IExchangeRateSynchronizationLock,
+            InProcessExchangeRateSynchronizationLock>();
         services.AddScoped<ExchangeRateSynchronizationService>();
         services.TryAddSingleton<
             IExchangeRateSynchronizationNotifier,

@@ -16,6 +16,7 @@ public sealed class ExchangeRateSynchronizationJobTests
         var synchronizationService = new ExchangeRateSynchronizationService(
             client,
             store,
+            new InProcessExchangeRateSynchronizationLock(),
             new FixedTimeProvider(
                 new DateTimeOffset(2026, 8, 9, 16, 30, 0, TimeSpan.Zero)));
         var notifier = new CapturingSynchronizationNotifier();

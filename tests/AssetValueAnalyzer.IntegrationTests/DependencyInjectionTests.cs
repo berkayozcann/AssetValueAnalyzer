@@ -74,6 +74,7 @@ public sealed class DependencyInjectionTests
                 ValidateScopes = true
             });
         using var scope = provider.CreateScope();
+        using var secondScope = provider.CreateScope();
 
         Assert.IsType<FinmaksExchangeRateClient>(
             scope.ServiceProvider.GetRequiredService<IFinmaksExchangeRateClient>());
@@ -81,6 +82,13 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IExchangeRateStore>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<ExchangeRateSynchronizationService>());
+        var synchronizationLock = scope.ServiceProvider
+            .GetRequiredService<IExchangeRateSynchronizationLock>();
+        Assert.IsType<InProcessExchangeRateSynchronizationLock>(synchronizationLock);
+        Assert.Same(
+            synchronizationLock,
+            secondScope.ServiceProvider
+                .GetRequiredService<IExchangeRateSynchronizationLock>());
         Assert.NotNull(
             scope.ServiceProvider.GetRequiredService<
                 IExchangeRateSynchronizationNotifier>());

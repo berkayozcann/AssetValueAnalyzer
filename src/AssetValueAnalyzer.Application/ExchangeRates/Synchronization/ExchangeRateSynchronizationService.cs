@@ -7,15 +7,18 @@ public sealed class ExchangeRateSynchronizationService
 {
     private readonly IFinmaksExchangeRateClient _finmaksClient;
     private readonly IExchangeRateStore _exchangeRateStore;
+    private readonly IExchangeRateSynchronizationLock _synchronizationLock;
     private readonly TimeProvider _timeProvider;
 
     public ExchangeRateSynchronizationService(
         IFinmaksExchangeRateClient finmaksClient,
         IExchangeRateStore exchangeRateStore,
+        IExchangeRateSynchronizationLock synchronizationLock,
         TimeProvider timeProvider)
     {
         _finmaksClient = finmaksClient;
         _exchangeRateStore = exchangeRateStore;
+        _synchronizationLock = synchronizationLock;
         _timeProvider = timeProvider;
     }
 
@@ -25,6 +28,9 @@ public sealed class ExchangeRateSynchronizationService
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateDateRange(request.StartDate, request.EndDate);
+
+        await using var synchronizationLease =
+            await _synchronizationLock.AcquireAsync(cancellationToken);
 
         var quotes = await _finmaksClient.GetRatesAsync(
             request.StartDate,
