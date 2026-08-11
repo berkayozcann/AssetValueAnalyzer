@@ -1,5 +1,6 @@
 using AssetValueAnalyzer.Application.Assets.Imports;
 using AssetValueAnalyzer.Application.ProducerPriceIndices.Imports;
+using AssetValueAnalyzer.Application.Reports.Creation;
 using AssetValueAnalyzer.IntegrationTests.Support;
 using AssetValueAnalyzer.Web.Controllers;
 using AssetValueAnalyzer.Web.Features.Dashboard;
@@ -16,6 +17,7 @@ public sealed class HomeControllerTests
         var controller = new HomeController(
             new TestReportWorkspaceSession(),
             new FakeCurrentUsdExchangeRateReader(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
             TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());
@@ -44,6 +46,7 @@ public sealed class HomeControllerTests
         var controller = new HomeController(
             workspace,
             new FakeCurrentUsdExchangeRateReader(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
             TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());
@@ -57,6 +60,44 @@ public sealed class HomeControllerTests
         Assert.Equal("endeks.xlsx", model.ProducerPriceIndices?.FileName);
         Assert.Equal(2, model.ProducerPriceIndices?.ParsedCount);
         Assert.Equal("Aralık 2021 – Ocak 2022", model.ProducerPriceIndices?.MonthRange);
+        Assert.Equal("valid", model.RangeValidation.State);
+        Assert.Equal(2, model.RangeValidation.IncludedMonthCount);
+    }
+
+    [Fact]
+    public async Task Index_WithRestoredInvalidRange_ExposesInvalidInitialButtonState()
+    {
+        var workspace = new TestReportWorkspaceSession();
+        workspace.SaveAssetValues(
+            "varlik.xlsx",
+            [
+                new MonthlyAssetValueInput(new DateOnly(2021, 12, 1), 1_000_000m),
+                new MonthlyAssetValueInput(new DateOnly(2022, 1, 1), 1_050_000m)
+            ]);
+        workspace.SaveProducerPriceIndices(
+            "endeks.xlsx",
+            [
+                new MonthlyProducerPriceIndexInput(new DateOnly(2021, 12, 1), 1_022.25m),
+                new MonthlyProducerPriceIndexInput(new DateOnly(2022, 1, 1), 1_129.03m)
+            ]);
+        workspace.SaveWizardState(new ReportWizardStateSnapshot(
+            2,
+            new DateOnly(2021, 12, 1),
+            new DateOnly(2021, 12, 1)));
+        var controller = new HomeController(
+            workspace,
+            new FakeCurrentUsdExchangeRateReader(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
+            TimeProvider.System);
+
+        var result = Assert.IsType<ViewResult>(await controller.Index());
+        var model = Assert.IsType<DashboardPageViewModel>(result.Model);
+
+        Assert.Equal("invalid", model.RangeValidation.State);
+        Assert.Equal(
+            "Rapor dönemi en az iki farklı varlık ayını içermelidir.",
+            model.RangeValidation.ErrorMessage);
+        Assert.Null(model.RangeValidation.IncludedMonthCount);
     }
 
     [Fact]
@@ -67,6 +108,7 @@ public sealed class HomeControllerTests
         var controller = new HomeController(
             workspace,
             new FakeCurrentUsdExchangeRateReader(),
+            new FinancialImpactReportRangeValidator(TimeProvider.System),
             TimeProvider.System);
 
         var result = Assert.IsType<ViewResult>(await controller.Index());

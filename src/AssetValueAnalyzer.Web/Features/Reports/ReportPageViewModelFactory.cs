@@ -67,7 +67,22 @@ public static class ReportPageViewModelFactory
                         ? "—"
                         : FormatPercentage(row.MonthlyInflationAdjustedChangeRate),
                     InflationAdjustedChangeRate: FormatPercentage(row.InflationAdjustedChangeRate),
-                    InflationEffect: FormatPercentage(row.InflationEffectRate)))
+                    InflationEffect: FormatPercentage(row.InflationEffectRate),
+                    SortValues: new ReportRowSortValues(
+                        row.Month,
+                        row.AssetAmount,
+                        index == 0 ? null : row.MonthlyAssetChangeRate,
+                        row.AssetChangeRate,
+                        row.UsdRate,
+                        row.DollarizedAmount,
+                        index == 0 ? null : row.MonthlyDollarizedChangeRate,
+                        row.DollarizedChangeRate,
+                        row.DollarizationEffectRate,
+                        row.ProducerPriceIndex,
+                        row.InflationAdjustedAmount,
+                        index == 0 ? null : row.MonthlyInflationAdjustedChangeRate,
+                        row.InflationAdjustedChangeRate,
+                        row.InflationEffectRate)))
                 .ToArray(),
             StartMonth: firstRow.Month,
             EndMonth: lastRow.Month,

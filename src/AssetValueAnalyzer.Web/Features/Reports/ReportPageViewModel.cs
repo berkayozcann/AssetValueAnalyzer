@@ -12,7 +12,12 @@ public sealed record ReportPageViewModel(
     DateOnly EndMonth,
     DateOnly AvailableStartMonth,
     DateOnly AvailableEndMonth,
-    FinancialImpactReport? ExportData = null);
+    FinancialImpactReport? ExportData = null)
+{
+    public ReportSortColumn SortColumn { get; init; } = ReportSortColumn.Month;
+
+    public ReportSortDirection SortDirection { get; init; } = ReportSortDirection.Ascending;
+}
 
 public sealed record ReportKpiViewModel(
     string Label,
@@ -50,4 +55,28 @@ public sealed record ReportRowViewModel(
     string InflationAdjustedAmount,
     string MonthlyInflationAdjustedIncreaseRate,
     string InflationAdjustedChangeRate,
-    string InflationEffect);
+    string InflationEffect,
+    ReportRowSortValues SortValues);
+
+public sealed record ReportRowSortValues(
+    DateOnly Month,
+    decimal AssetValue,
+    decimal? MonthlyAssetIncreaseRate,
+    decimal? AssetChangeRate,
+    decimal UsdRate,
+    decimal DollarizedAmount,
+    decimal? MonthlyDollarizedIncreaseRate,
+    decimal? DollarizedChangeRate,
+    decimal? DollarizationEffect,
+    decimal ProducerPriceIndex,
+    decimal InflationAdjustedAmount,
+    decimal? MonthlyInflationAdjustedIncreaseRate,
+    decimal? InflationAdjustedChangeRate,
+    decimal? InflationEffect);
+
+public sealed record ReportSortLinkViewModel(
+    string Label,
+    string Url,
+    string SortKey,
+    bool IsActive,
+    ReportSortDirection Direction);

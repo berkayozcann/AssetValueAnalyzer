@@ -794,9 +794,13 @@
     indexValidationRequestId: 0,
     assetFirstMonth: wizard.dataset.assetFirstMonth || null,
     assetLastMonth: wizard.dataset.assetLastMonth || null,
-    rangeValidationState: "idle",
+    rangeValidationState: ["valid", "invalid"].includes(
+      wizard.dataset.rangeValidationState,
+    )
+      ? wizard.dataset.rangeValidationState
+      : "idle",
     rangeValidationRequestId: 0,
-    includedMonthCount: null,
+    includedMonthCount: Number(wizard.dataset.rangeIncludedMonthCount) || null,
     reportLocked: wizard.dataset.reportLocked === "true",
     fileUploadInProgress: false,
   };
@@ -1475,11 +1479,11 @@
 
   renderStep();
 
-  if (state.step === 2) {
+  if (state.step === 2 && state.rangeValidationState === "idle") {
     void validateWizardRange();
   }
 
-  if (state.step === 3) {
+  if (state.step === 3 && state.rangeValidationState !== "valid") {
     void validateWizardRange().then((isValid) => {
       if (isValid) {
         updateConfirmationSummary();

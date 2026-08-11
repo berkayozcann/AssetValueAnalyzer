@@ -1,0 +1,22 @@
+@using AssetValueAnalyzer.Web.Features.Reports
+@model ReportSortLinkViewModel
+
+@{
+    var indicator = Model.IsActive
+        ? Model.Direction == ReportSortDirection.Ascending ? "↑" : "↓"
+        : "↕";
+    var nextAction = !Model.IsActive
+        ? "artan sırala"
+        : Model.Direction == ReportSortDirection.Ascending
+            ? "azalan sırala"
+            : "varsayılan tarih sırasına dön";
+}
+
+<a href="@Model.Url"
+   class="inline-flex items-center gap-1.5 text-current hover:text-brand-500"
+   title="@Model.Label: @nextAction"
+   data-report-sort="@Model.SortKey">
+    <span>@Model.Label</span>
+    <span class="text-xs text-brand-400" aria-hidden="true">@indicator</span>
+    <span class="sr-only">@nextAction</span>
+</a>

@@ -9,5 +9,5 @@ public interface ICurrentUsdExchangeRateReader
 public sealed record CurrentUsdExchangeRate(
     decimal Value,
     DateOnly RateDate,
-    DateTimeOffset RetrievedAtUtc,
+    DateTimeOffset LastCheckedAtUtc,
     decimal? PreviousValue);

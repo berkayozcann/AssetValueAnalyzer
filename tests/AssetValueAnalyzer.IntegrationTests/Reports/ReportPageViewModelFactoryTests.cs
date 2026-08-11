@@ -106,6 +106,31 @@ public sealed class ReportPageViewModelFactoryTests
         Assert.Equal(new DateOnly(2022, 1, 1), viewModel.EndMonth);
         Assert.Equal(new DateOnly(2021, 11, 1), viewModel.AvailableStartMonth);
         Assert.Equal(new DateOnly(2022, 3, 1), viewModel.AvailableEndMonth);
+        Assert.Equal(1_000m, viewModel.Rows[0].SortValues.AssetValue);
+        Assert.Null(viewModel.Rows[0].SortValues.MonthlyAssetIncreaseRate);
+        Assert.Equal(0.1005m, viewModel.Rows[1].SortValues.MonthlyAssetIncreaseRate);
+
+        var amountDescending = ReportTableSort.Apply(viewModel, "asset-value", "desc");
+        Assert.Equal(
+            ["Ocak 2022", "Aralık 2021"],
+            amountDescending.Rows.Select(row => row.Month));
+        Assert.Equal(ReportSortColumn.AssetValue, amountDescending.SortColumn);
+        Assert.Equal(ReportSortDirection.Descending, amountDescending.SortDirection);
+
+        var monthlyIncreaseAscending = ReportTableSort.Apply(
+            viewModel,
+            "monthly-asset-increase",
+            "asc");
+        Assert.Equal(
+            ["Ocak 2022", "Aralık 2021"],
+            monthlyIncreaseAscending.Rows.Select(row => row.Month));
+
+        var defaultSort = ReportTableSort.Apply(viewModel, "invalid", "invalid");
+        Assert.Equal(
+            ["Aralık 2021", "Ocak 2022"],
+            defaultSort.Rows.Select(row => row.Month));
+        Assert.Equal(ReportSortColumn.Month, defaultSort.SortColumn);
+        Assert.Equal(ReportSortDirection.Ascending, defaultSort.SortDirection);
     }
 
     [Fact]

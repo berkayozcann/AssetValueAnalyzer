@@ -31,8 +31,8 @@ public static class ExchangeRateCardViewModelFactory
             _ => ExchangeRateTrend.Unchanged
         };
         var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
-        var retrievedAtLocal = TimeZoneInfo.ConvertTime(
-            rate.RetrievedAtUtc,
+        var lastCheckedAtLocal = TimeZoneInfo.ConvertTime(
+            rate.LastCheckedAtUtc,
             timeProvider.LocalTimeZone);
 
         return new(
@@ -44,7 +44,7 @@ public static class ExchangeRateCardViewModelFactory
                 ExchangeRateTrend.Unchanged => "USD/TRY kuru bir önceki kur gününe göre değişmedi.",
                 _ => "Karşılaştırma için önceki kur verisi bulunmuyor."
             },
-            LastSyncText: $"Son kontrol · {retrievedAtLocal:dd.MM.yyyy HH:mm}",
+            LastSyncText: $"Son kontrol · {lastCheckedAtLocal:dd.MM.yyyy HH:mm}",
             Trend: trend)
         {
             RateDateText = $"Kur tarihi · {rate.RateDate:dd.MM.yyyy}",

@@ -32,10 +32,16 @@ public sealed class EfCurrentUsdExchangeRateReader(
             return null;
         }
 
+        var lastCheckedAtUtc = await dbContext.ExchangeRateBackfillCheckpoints
+            .AsNoTracking()
+            .Select(checkpoint => (DateTimeOffset?)checkpoint.CompletedAtUtc)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? latestRates[0].RetrievedAtUtc;
+
         return new CurrentUsdExchangeRate(
             latestRates[0].CashChangeRate,
             latestRates[0].RateDate,
-            latestRates[0].RetrievedAtUtc,
+            lastCheckedAtUtc,
             latestRates.Length > 1
                 ? latestRates[1].CashChangeRate
                 : null);

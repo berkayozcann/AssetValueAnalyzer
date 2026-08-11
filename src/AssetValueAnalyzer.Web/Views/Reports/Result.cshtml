@@ -14,6 +14,31 @@
         _ => "text-slate-300"
     };
 
+    string SortAriaValue(ReportSortColumn column) =>
+        Model.SortColumn != column
+            ? "none"
+            : Model.SortDirection == ReportSortDirection.Ascending
+                ? "ascending"
+                : "descending";
+
+    ReportSortLinkViewModel SortLink(ReportSortColumn column, string label)
+    {
+        var isActive = Model.SortColumn == column;
+        var sortKey = ReportTableSort.ToQueryValue(column);
+        var url = !isActive
+            ? Url.Action("Index", "Reports", new { sort = sortKey, direction = "asc" })
+            : Model.SortDirection == ReportSortDirection.Ascending
+                ? Url.Action("Index", "Reports", new { sort = sortKey, direction = "desc" })
+                : Url.Action("Index", "Reports");
+
+        return new ReportSortLinkViewModel(
+            label,
+            url ?? "/reports",
+            sortKey,
+            isActive,
+            Model.SortDirection);
+    }
+
     const int pageSize = 10;
     var pageCount = Math.Max(1, (int)Math.Ceiling(Model.Rows.Count / (double)pageSize));
     var requestedPage = int.TryParse(Context.Request.Query["page"], out var parsedPage)
@@ -130,43 +155,47 @@
             <table class="min-w-[1900px] border-collapse text-sm tabular-nums">
                 <thead class="sticky top-0 z-20 bg-surface-900 text-left text-ink-700">
                     <tr>
-                        <th scope="col" class="sticky left-0 z-30 w-40 min-w-40 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-left font-medium">Tarih</th>
-                        <th scope="col" class="w-48 min-w-48 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-right font-medium md:sticky md:left-40 md:z-30">Varlık Tutarı</th>
-                        <th scope="col" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Önceki Aya Göre Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Önceki Aya Göre Varlık Artışı", "Varlık tutarının bir önceki aya göre yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.Month)" class="sticky left-0 z-30 w-40 min-w-40 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-left font-medium">
+                            <partial name="_ReportSortLink" model='SortLink(ReportSortColumn.Month, "Tarih")' />
                         </th>
-                        <th scope="col" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Varlık Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Varlık Değişim Oranı", "İlgili aydan rapor ayına kadar nominal varlığın yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.AssetValue)" class="w-48 min-w-48 border-b border-r border-line-700 bg-surface-900 px-5 py-3 text-right font-medium md:sticky md:left-40 md:z-30">
+                            <partial name="_ReportSortLink" model='SortLink(ReportSortColumn.AssetValue, "Varlık Tutarı")' />
                         </th>
-                        <th scope="col" class="min-w-36 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">USD Kuru @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("USD Kuru", "İlgili ayın son iş günündeki USD/TRY kurudur."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.MonthlyAssetIncreaseRate)" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.MonthlyAssetIncreaseRate, "Önceki Aya Göre Varlık Artışı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Önceki Aya Göre Varlık Artışı", "Varlık tutarının bir önceki aya göre yüzde değişimidir."))</span>
                         </th>
-                        <th scope="col" class="min-w-52 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Dolarizasyon Varlık Tutarı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Varlık Tutarı", "Varlığın kur değişimiyle rapor ayına taşınmış tutarıdır."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.AssetChangeRate)" class="min-w-48 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.AssetChangeRate, "Varlık Değişim Oranı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Varlık Değişim Oranı", "İlgili aydan rapor ayına kadar nominal varlığın yüzde değişimidir."))</span>
                         </th>
-                        <th scope="col" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Dolarizasyon Önceki Aya Göre Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Aylık Artışı", "Dolarizasyon tutarının bir önceki aya göre yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.UsdRate)" class="min-w-36 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.UsdRate, "USD Kuru")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("USD Kuru", "İlgili ayın son iş günündeki USD/TRY kurudur."))</span>
                         </th>
-                        <th scope="col" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Dolarizasyon Varlık Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Değişim Oranı", "İlgili aydan rapor ayına kadar dolarizasyon tutarının yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.DollarizedAmount)" class="min-w-52 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.DollarizedAmount, "Dolarizasyon Varlık Tutarı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Varlık Tutarı", "Varlığın kur değişimiyle rapor ayına taşınmış tutarıdır."))</span>
                         </th>
-                        <th scope="col" class="min-w-44 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Dolarizasyon Etkisi (%) @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Etkisi", "Nominal tutarın kur etkisinden sonraki yüzde farkıdır."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.MonthlyDollarizedIncreaseRate)" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.MonthlyDollarizedIncreaseRate, "Dolarizasyon Önceki Aya Göre Varlık Artışı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Aylık Artışı", "Dolarizasyon tutarının bir önceki aya göre yüzde değişimidir."))</span>
                         </th>
-                        <th scope="col" class="min-w-40 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Yİ-ÜFE Endeksi @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Yİ-ÜFE Endeksi", "İlgili aya ait yurt içi üretici fiyat endeksi puanıdır."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.DollarizedChangeRate)" class="min-w-60 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.DollarizedChangeRate, "Dolarizasyon Varlık Değişim Oranı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Değişim Oranı", "İlgili aydan rapor ayına kadar dolarizasyon tutarının yüzde değişimidir."))</span>
                         </th>
-                        <th scope="col" class="min-w-56 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Varlık Tutarı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Varlık Tutarı", "Varlığın Yİ-ÜFE değişimiyle rapor ayına taşınmış tutarıdır."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.DollarizationEffect)" class="min-w-44 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.DollarizationEffect, "Dolarizasyon Etkisi (%)")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Dolarizasyon Etkisi", "Nominal tutarın kur etkisinden sonraki yüzde farkıdır."))</span>
                         </th>
-                        <th scope="col" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Önceki Aya Göre Varlık Artışı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Aylık Artışı", "Enflasyon tutarının bir önceki aya göre yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.ProducerPriceIndex)" class="min-w-40 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.ProducerPriceIndex, "Yİ-ÜFE Endeksi")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Yİ-ÜFE Endeksi", "İlgili aya ait yurt içi üretici fiyat endeksi puanıdır."))</span>
                         </th>
-                        <th scope="col" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Varlık Değişim Oranı @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Değişim Oranı", "İlgili aydan rapor ayına kadar enflasyon tutarının yüzde değişimidir."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.InflationAdjustedAmount)" class="min-w-56 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.InflationAdjustedAmount, "Enflasyon Varlık Tutarı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Varlık Tutarı", "Varlığın Yİ-ÜFE değişimiyle rapor ayına taşınmış tutarıdır."))</span>
                         </th>
-                        <th scope="col" class="min-w-44 border-b border-line-700 px-5 py-3 text-right font-medium">
-                            <span class="inline-flex items-center gap-2">Enflasyon Etkisi (%) @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Etkisi", "Nominal tutarın Yİ-ÜFE etkisinden sonraki yüzde farkıdır."))</span>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.MonthlyInflationAdjustedIncreaseRate)" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.MonthlyInflationAdjustedIncreaseRate, "Enflasyon Önceki Aya Göre Varlık Artışı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Aylık Artışı", "Enflasyon tutarının bir önceki aya göre yüzde değişimidir."))</span>
+                        </th>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.InflationAdjustedChangeRate)" class="min-w-64 border-b border-r border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.InflationAdjustedChangeRate, "Enflasyon Varlık Değişim Oranı")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Değişim Oranı", "İlgili aydan rapor ayına kadar enflasyon tutarının yüzde değişimidir."))</span>
+                        </th>
+                        <th scope="col" aria-sort="@SortAriaValue(ReportSortColumn.InflationEffect)" class="min-w-44 border-b border-line-700 px-5 py-3 text-right font-medium">
+                            <span class="inline-flex items-center gap-2"><partial name="_ReportSortLink" model='SortLink(ReportSortColumn.InflationEffect, "Enflasyon Etkisi (%)")' /> @await Html.PartialAsync("_InfoTooltip", new InfoTooltipViewModel("Enflasyon Etkisi", "Nominal tutarın Yİ-ÜFE etkisinden sonraki yüzde farkıdır."))</span>
                         </th>
                     </tr>
                 </thead>

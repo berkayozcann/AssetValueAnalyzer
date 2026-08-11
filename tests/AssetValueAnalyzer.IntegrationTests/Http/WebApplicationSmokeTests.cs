@@ -122,6 +122,8 @@ public sealed partial class WebApplicationSmokeTests(
         var css = await client.GetStringAsync("/css/app.css");
 
         Assert.Contains("<meta name=\"color-scheme\" content=\"only light\"", html);
+        Assert.Contains("rel=\"icon\" type=\"image/x-icon\" href=\"/favicon.ico?v=", html);
+        Assert.Contains("rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg?v=", html);
         Assert.Contains("color-scheme:light only", css);
         Assert.Contains("--color-canvas-950:#e7e5de", css);
         Assert.Contains("--color-surface-900:#f4f2ec", css);
@@ -209,6 +211,10 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("rangeContinueButton.disabled = isInvalid;", javascript);
         Assert.Contains("rangeContinueButton.setAttribute(\"aria-disabled\", String(isInvalid));", javascript);
         Assert.Contains("rangeContinueButton.setAttribute(\"aria-busy\", String(isValidating));", javascript);
+        Assert.Contains("wizard.dataset.rangeValidationState", javascript);
+        Assert.Contains(
+            "state.step === 2 && state.rangeValidationState === \"idle\"",
+            javascript);
         Assert.Contains("continueButton.disabled = state.reportLocked || !(", javascript);
         Assert.Contains("state.rangeValidationState !== \"validating\"", javascript);
         Assert.Matches(
@@ -403,6 +409,17 @@ public sealed partial class WebApplicationSmokeTests(
             new("StartMonth", "2021-12"),
             new("EndMonth", "2022-01")
         ]);
+        using var invalidDateStepContent = new FormUrlEncodedContent(
+        [
+            new("__RequestVerificationToken", token),
+            new("Step", "2"),
+            new("StartMonth", "2021-12"),
+            new("EndMonth", "2021-12")
+        ]);
+        using var invalidDateStepResponse = await client.PostAsync(
+            "/reports/wizard-state",
+            invalidDateStepContent);
+        var invalidDateStepHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
         using var dateStepContent = new FormUrlEncodedContent(
         [
             new("__RequestVerificationToken", token),
@@ -438,7 +455,16 @@ public sealed partial class WebApplicationSmokeTests(
 
         Assert.Equal(HttpStatusCode.OK, assetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, invalidDateStepResponse.StatusCode);
+        Assert.Contains("data-range-validation-state=\"invalid\"", invalidDateStepHtml);
+        Assert.Contains(
+            "Rapor dönemi en az iki farklı varlık ayını içermelidir.",
+            invalidDateStepHtml);
+        Assert.Matches(
+            "data-step-two-continue[^>]*\\sdisabled=\"disabled\"",
+            invalidDateStepHtml);
         Assert.Equal(HttpStatusCode.OK, dateStepResponse.StatusCode);
+        Assert.Contains("data-range-validation-state=\"valid\"", dateStepHtml);
         Assert.Contains("<html lang=\"tr\" data-report-wizard-step=\"2\">", dateStepHtml);
         Assert.Contains("data-initial-step=\"2\"", dateStepHtml);
         Assert.Matches("""data-step-panel="1"[^>]*hidden""", dateStepHtml);
@@ -446,7 +472,9 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Matches("""data-step-panel="3"[^>]*hidden""", dateStepHtml);
         Assert.Contains("aria-label=\"Başlangıç ayı: Aralık 2021\"", dateStepHtml);
         Assert.Contains("aria-label=\"Bitiş ayı: Ocak 2022\"", dateStepHtml);
-        Assert.DoesNotMatch("""data-step-two-continue[^>]*disabled""", dateStepHtml);
+        Assert.DoesNotMatch(
+            "data-step-two-continue[^>]*\\sdisabled=\"disabled\"",
+            dateStepHtml);
         Assert.Equal(HttpStatusCode.OK, confirmationStepResponse.StatusCode);
         Assert.Contains("<html lang=\"tr\" data-report-wizard-step=\"3\">", confirmationStepHtml);
         Assert.Contains("data-initial-step=\"3\"", confirmationStepHtml);
@@ -478,6 +506,9 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("border-brand-400 bg-brand-500 text-paper-100", reportHtml);
         Assert.Contains("aria-current=\"page\"", reportHtml);
         Assert.Contains("data-current-page=\"1\"", reportHtml);
+        Assert.Equal(14, reportHtml.Split("data-report-sort=\"").Length - 1);
+        Assert.Contains("data-report-sort=\"asset-value\"", reportHtml);
+        Assert.Contains("aria-sort=\"ascending\"", reportHtml);
         Assert.Matches("""data-page-previous\s+disabled""", reportHtml);
         Assert.Matches("""data-page-next\s+disabled""", reportHtml);
         Assert.Contains("window.history.replaceState", await client.GetStringAsync("/js/app.js"));

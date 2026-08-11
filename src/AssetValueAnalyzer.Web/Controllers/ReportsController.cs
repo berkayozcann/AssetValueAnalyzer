@@ -20,13 +20,21 @@ public sealed class ReportsController(
     TimeProvider timeProvider) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(
+        string? sort = null,
+        string? direction = null,
+        CancellationToken cancellationToken = default)
     {
         var snapshot = reportWorkspaceSession.Get();
         var exchangeRate = await GetCurrentExchangeRateCardAsync(cancellationToken);
 
         return snapshot.CompletedReport is not null
-            ? View("Result", snapshot.CompletedReport with { ExchangeRate = exchangeRate })
+            ? View(
+                "Result",
+                ReportTableSort.Apply(
+                    snapshot.CompletedReport with { ExchangeRate = exchangeRate },
+                    sort,
+                    direction))
             : View(ReportWorkspacePageViewModel.FromSnapshot(snapshot, exchangeRate));
     }
 

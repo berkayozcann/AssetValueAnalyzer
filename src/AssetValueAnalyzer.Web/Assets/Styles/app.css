@@ -305,11 +305,12 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    padding-inline: 1.5rem;
+    padding-inline: 1rem;
     border-radius: 0.5rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   @media (min-width: 640px) {

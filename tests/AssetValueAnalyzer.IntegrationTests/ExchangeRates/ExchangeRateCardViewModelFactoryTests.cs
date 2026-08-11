@@ -74,17 +74,28 @@ public sealed class ExchangeRateCardViewModelFactoryTests
     [Fact]
     public void Create_WhenLatestPublishedRateIsOlderThanToday_MarksCurrentDayAsWaiting()
     {
+        var lastCheckedAtUtc = new DateTimeOffset(
+            2026,
+            8,
+            11,
+            21,
+            15,
+            0,
+            TimeSpan.Zero);
         var viewModel = ExchangeRateCardViewModelFactory.Create(
             new CurrentUsdExchangeRate(
                 45.8708m,
                 new DateOnly(2026, 8, 10),
-                new DateTimeOffset(2026, 8, 10, 8, 30, 0, TimeSpan.Zero),
+                lastCheckedAtUtc,
                 45.70m),
-            CreateTimeProvider(new DateOnly(2026, 8, 11)));
+            CreateTimeProvider(
+                new DateOnly(2026, 8, 12),
+                TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul")));
 
         Assert.True(viewModel.HasRate);
         Assert.True(viewModel.IsAwaitingCurrentDayRate);
         Assert.Equal("Kur tarihi · 10.08.2026", viewModel.RateDateText);
+        Assert.Equal("Son kontrol · 12.08.2026 00:15", viewModel.LastSyncText);
         Assert.Equal(ExchangeRateTrend.Increased, viewModel.Trend);
     }
 
