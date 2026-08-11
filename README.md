@@ -1,63 +1,663 @@
-# Asset Value Analyzer
+# AssetValueAnalyzer
 
-Asset Value Analyzer; aylık Varlık ve Yİ-ÜFE verilerini, Finmaks'tan alınarak
-MSSQL'de tutulan USD/TRY kurlarıyla birleştiren ASP.NET Core MVC uygulamasıdır.
-Kullanıcı sabit şirket şablonundaki XLSX dosyalarını yükler, rapor aralığını seçer ve nominal,
-dolarizasyon ve enflasyon etkilerini 14 kolonlu aylık tabloda görüntüler.
+AssetValueAnalyzer; aylık varlık ve Yİ-ÜFE verilerini, Finmaks üzerinden alınan
+USD/TRY kurlarıyla birleştirerek nominal değişim, dolarizasyon etkisi ve enflasyon
+etkisi hesaplayan bir ASP.NET Core uygulamasıdır.
 
-## Güncel durum
+Kullanıcı iki XLSX dosyasını yükler, rapor dönemini seçer ve 14 kolonlu finansal
+etki raporunu web arayüzünde görüntüler veya XLSX olarak indirir.
 
-Zorunlu kullanıcı akışının çalışan çekirdeği tamamlandı:
+## Özellikler
 
-- Finmaks için typed `HttpClient`, doğrulanan options ve `CashChangeRate` mapping'i.
-- EF Core Code First, MSSQL migration'ı ve idempotent kur insert/update akışı.
-- Uygulama başlangıcında Aralık 2021'den bugüne backfill veya eksik aralık tamamlama.
-- Hangfire + MSSQL storage ile uygulama açıkken varsayılan 3 dakikada bir bugünün
-  kurlarını idempotent biçimde yenileme.
-- Başarılı Hangfire kontrolünden sonra SignalR bildirimi ve kur kartının sayfa
-  yenilenmeden kontrollü HTTP refetch ile güncellenmesi.
-- Ayrı ASP.NET Core Web API hostundan en güncel veya tarih/para koduyla filtrelenmiş
-  kurları entity'den ayrılmış DTO ve `ProblemDetails` sözleşmesiyle sunma.
-- Varlık ve Endeks verileri için şirket örneklerinin sabit satır/sütun yapısına uyumlu XLSX parser'ları.
-- Dosya boyutu, uzantı, içerik/şablon, tarih, sayı ve duplicate ay doğrulamaları.
-- Tamamlanan 14 kolonlu finansal detay raporunu biçimlendirilmiş XLSX olarak indirme.
-- Geçerli dosyaları kullanıcı session'ında tutan rapor çalışma alanı.
-- Tarih aralığı ve eksik ay doğrulaması.
-- Aylık son iş günü USD/TRY `CashChangeRate` seçimi ve en fazla 10 günlük geri arama.
-- `decimal` kullanan nominal, dolarizasyon ve enflasyon hesapları.
-- KPI özeti ve şartnamedeki 14 kolonu gösteren gerçek Razor sonuç ekranı.
-- Kontrollü production fixture'ı ve şirket Excel'indeki referans kur fixture'ıyla formül testleri.
-- `WebApplicationFactory<Program>` ile gerçek host, routing, Razor, anti-forgery,
-  multipart model binding ve session cookie smoke testleri.
+- Sabit şirket şablonlarına uygun Varlık ve Yİ-ÜFE XLSX importu.
+- Dosya boyutu, uzantı, içerik, tarih, sayı ve tekrar eden ay doğrulamaları.
+- Finmaks `ExchangeRates` listesindeki tüm para çiftlerinin ve kur alanlarının
+  MSSQL'de idempotent olarak tutulması.
+- Uygulama başlangıcında Aralık 2021'den bugüne eksik tüm kur verilerinin tamamlanması.
+- Hangfire ile varsayılan üç dakikada bir güncel kur kontrolü.
+- SignalR ile kur kartının sayfa yenilenmeden güncellenmesi.
+- Nominal değişim, dolarizasyon ve enflasyon etkisi hesaplamaları.
+- 14 kolonlu detaylı rapor, KPI özeti ve XLSX rapor çıktısı.
+- Ayrı, salt okunur kur Web API'si.
+- Docker Compose ve manuel kurulum desteği.
 
-Zorunlu kapsam ve şartnamedeki EF Core Code First, ayrı API, Hangfire ve SignalR
-bonusları tamamlandı. Temiz MSSQL migration, Docker Compose, Release publish,
-secret/artifact taraması ve son teslim kontrolleri doğrulandı. GitHub Actions CI
-workflow'u bu 3–4 günlük teslim kapsamına eklenmedi.
+## Teknolojiler
 
-## Kullanılan teknolojiler
+- .NET 10 / ASP.NET Core 10 MVC ve Controller-based Web API
+- Razor Views, Vanilla JavaScript ve Tailwind CSS 4
+- EF Core 10 Code First ve MSSQL
+- Hangfire ve SignalR
+- Typed `HttpClient` ile Finmaks entegrasyonu
+- ClosedXML ile XLSX okuma ve üretme
+- xUnit ve `WebApplicationFactory<Program>` integration testleri
 
-- .NET 10 / ASP.NET Core 10 MVC
-- Razor Views ve strongly typed view model'ler
-- EF Core 10 Code First + MSSQL
-- Typed `HttpClient` ile Finmaks ExchangeRates entegrasyonu
-- Hangfire 1.8 + MSSQL job storage
-- ASP.NET Core SignalR + yerel `@microsoft/signalr` JavaScript client
-- ClosedXML ile XLSX okuma
-- Tailwind CSS 4 local CLI build
-- Vanilla JavaScript
-- xUnit, SQLite tabanlı integration testleri ve `WebApplicationFactory` HTTP smoke testleri
+## Kurulum yolunu seçin
+
+Aşağıdaki üç yol birbirinden bağımsızdır. Bir kurulum sırasında yalnız birini
+uygulayın.
+
+| Yol | Uygulama nerede çalışır? | MSSQL nerede çalışır? | Gerekenler |
+| --- | --- | --- | --- |
+| 1. Tam Docker Compose | Docker container'larında | Docker container'ında | Docker ve Finmaks API anahtarı |
+| 2. Manuel + container DB | Bilgisayarda `dotnet run` ile | Bağımsız Docker container'ında | .NET, Node.js, pnpm, Docker ve Finmaks API anahtarı |
+| 3. Manuel + mevcut MSSQL | Bilgisayarda `dotnet run` ile | Mevcut/uzak SQL Server'da | .NET, Node.js, pnpm, MSSQL erişim bilgileri ve Finmaks API anahtarı |
+
+Repository ZIP olarak teslim edildiyse arşivi açın ve terminali içindeki
+`AssetValueAnalyzer` klasöründe açın. Git ile alınacaksa:
+
+```bash
+git clone https://github.com/berkayozcann/AssetValueAnalyzer.git
+cd AssetValueAnalyzer
+```
+
+README'deki bütün komutlar aksi belirtilmedikçe bu repository kökünde çalıştırılır.
+
+## Yol 1 — Tam Docker Compose kurulumu
+
+Bu yol Web, API ve MSSQL'i birlikte Docker'da çalıştırır. Bilgisayara .NET,
+Node.js veya pnpm kurmanız gerekmez. Bu yöntemde `user-secrets` kullanılmaz.
+
+### Gereksinimler
+
+- Çalışır durumda Docker Desktop veya Docker Engine
+- Docker Compose (`docker compose version` ile kontrol edilebilir)
+- Finmaks tarafından verilmiş gerçek API anahtarı
+
+Docker kurulu değilse macOS/Windows için [Docker Desktop](https://docs.docker.com/desktop/),
+Linux için [Docker Engine](https://docs.docker.com/engine/install/) kurulumunu
+tamamlayın. Docker Desktop kullanıyorsanız uygulamayı açıp engine'in başlamasını
+bekleyin. Ardından kontrol edin:
+
+```bash
+docker --version
+docker compose version
+docker info
+```
+
+Üç komut da hata vermeden çalışmalıdır. `docker info` daemon bağlantı hatası
+veriyorsa Docker Desktop/Engine henüz çalışmıyordur.
+
+### 1. `.env` dosyasını oluşturun
+
+```bash
+cp .env.example .env
+```
+
+Repository kökündeki yeni `.env` dosyasını bir metin editörüyle açın ve iki
+placeholder değeri değiştirin:
+
+```text
+MSSQL_SA_PASSWORD=<KENDİNİZİN_BELİRLEDİĞİ_GÜÇLÜ_PAROLA>
+FINMAKS_API_KEY=<FINMAKS_TARAFINDAN_VERİLEN_GERÇEK_ANAHTAR>
+```
+
+`MSSQL_SA_PASSWORD` hazır gelen bir parola değildir. Kurulumu yapan kişi bu
+aşamada yeni ve güçlü bir parola belirler ve `=` işaretinden sonra yazar. Compose
+aynı değeri hem MSSQL container'ını oluştururken hem de Web/API connection
+string'lerini üretirken kullanır.
+
+`FINMAKS_API_KEY` kullanıcı tarafından uydurulamaz; Finmaks tarafından sağlanan
+gerçek anahtar yazılmalıdır. `.env` git tarafından izlenmez ve commit edilmemelidir.
+
+### 2. Tüm servisleri başlatın
+
+```bash
+docker compose up --build --wait
+```
+
+İlk build ve Aralık 2021'den bugüne kur senkronizasyonu birkaç dakika sürebilir.
+Servis durumlarını kontrol edin:
+
+```bash
+docker compose ps
+```
+
+`web`, `api` ve `mssql` servislerinin `healthy` olması beklenir.
+
+### 3. Uygulamayı kontrol edin
+
+| Servis | Adres |
+| --- | --- |
+| Web | `http://localhost:5271` |
+| API | `http://localhost:5272` |
+| Web health | `http://localhost:5271/health` |
+| API health | `http://localhost:5272/health` |
+| MSSQL | `localhost,1433` |
+
+Terminalden sağlık kontrolü:
+
+```bash
+curl http://localhost:5271/health
+curl http://localhost:5272/health
+```
+
+Her iki isteğin de `Healthy` ve HTTP `200` döndürmesi beklenir.
+
+### 4. Servisleri durdurun
+
+```bash
+docker compose down
+```
+
+Bu komut container'ları kaldırır ancak MSSQL named volume'ünü ve verileri korur.
+`docker compose down --volumes` veritabanı volume'ünü ve içindeki verileri kalıcı
+olarak siler; temiz kurulum istenmiyorsa kullanılmamalıdır.
+
+## Manuel yollar için tam sürüm kurulumu
+
+Bu bölüm yalnız Yol 2 veya Yol 3 uygulanacaksa gereklidir. Projenin son doğrulandığı
+tam araç sürümleri şunlardır:
+
+| Araç | Sürüm |
+| --- | --- |
+| .NET SDK | `10.0.302` |
+| Node.js | `24.18.1` |
+| pnpm | `11.16.0` |
+
+Proje EF Core Code First migration'larını kullanır. Ancak Web hostu açılışta
+bekleyen migration'ları otomatik uyguladığı için manuel kurulum yapan kişinin
+`dotnet-ef` aracını kurması veya elle migration komutu çalıştırması gerekmez.
+
+### 1. .NET SDK 10.0.302'yi kurun
+
+[Microsoft .NET 10 indirme sayfasını](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+açın. `SDK 10.0.302` başlığı altında işletim sisteminize ve işlemci mimarinize
+uygun **SDK** installer'ını seçin. Yalnız Runtime indirmek yeterli değildir.
+
+- Apple Silicon Mac: macOS Arm64 SDK installer
+- Intel Mac: macOS x64 SDK installer
+- 64 bit Windows: Windows x64 SDK installer
+- Linux: aynı sayfadaki dağıtımınıza uygun package manager talimatı veya binary
+
+Installer bittikten sonra yeni bir terminal açın ve doğrulayın:
+
+```bash
+dotnet --version
+```
+
+Beklenen çıktı: `10.0.302`.
+
+### 2. Node.js 24.18.1'i kurun
+
+[Resmî Node.js 24.18.1 arşivini](https://nodejs.org/dist/v24.18.1/) açın.
+
+- macOS: `node-v24.18.1.pkg`
+- 64 bit Windows: `node-v24.18.1-x64.msi`
+- Apple Silicon/Linux gibi diğer mimariler: işletim sistemi ve mimari adını
+  taşıyan `24.18.1` paketini
+
+kurun. Kurulumdan sonra yeni bir terminal açıp doğrulayın:
+
+```bash
+node --version
+npm --version
+```
+
+Node çıktısının `v24.18.1` olması beklenir. `npm`, Node installer'ıyla birlikte gelir.
+
+### 3. pnpm 11.16.0'ı kurun
+
+Node kurulduktan sonra:
+
+```bash
+npm install --global pnpm@11.16.0
+pnpm --version
+```
+
+Beklenen pnpm çıktısı: `11.16.0`.
+
+## Yol 2 — Manuel Web/API + container MSSQL
+
+Bu yolda yalnız veritabanı Docker container'ında çalışır. Web ve API doğrudan
+bilgisayarda `dotnet run` ile başlatılır. Docker Compose ve `.env` kullanılmaz.
+
+### Gereksinimler
+
+- Bir önceki bölümdeki .NET SDK, Node.js ve pnpm sürümleri
+- Çalışır durumda Docker
+- Finmaks tarafından verilmiş gerçek API anahtarı
+- `1433`, `5271` ve `5076` portlarının başka bir uygulama tarafından kullanılmaması
+
+Docker kurulu değilse macOS/Windows için [Docker Desktop](https://docs.docker.com/desktop/),
+Linux için [Docker Engine](https://docs.docker.com/engine/install/) kurulumunu
+tamamlayın. Docker Desktop'ı açtıktan sonra `docker info` komutunun hata vermeden
+çalıştığını doğrulayın. Bu yolda `docker compose` komutu kullanılmayacaktır.
+
+### 1. Container DB parolasını belirleyin
+
+`<CONTAINER_DB_PAROLASI>` yerine kendinizin belirlediği güçlü bir MSSQL `sa`
+parolası yazacaksınız. Bu parolayı iki yerde aynı kullanmanız gerekir:
+
+1. MSSQL container'ını oluştururken `MSSQL_SA_PASSWORD` değerinde.
+2. Manuel Web/API için kaydedilen connection string'in `Password` bölümünde.
+
+Uygulama bu parolayı üretmez veya sizin yerinize belirlemez.
+
+### 2. MSSQL volume'ünü ve container'ını oluşturun
+
+```bash
+docker volume create asset-value-analyzer-mssql-data
+
+docker run --detach \
+  --name assetvalueanalyzer-mssql \
+  --platform linux/amd64 \
+  --env ACCEPT_EULA=Y \
+  --env MSSQL_PID=Developer \
+  --env MSSQL_SA_PASSWORD='<CONTAINER_DB_PAROLASI>' \
+  --publish 127.0.0.1:1433:1433 \
+  --volume asset-value-analyzer-mssql-data:/var/opt/mssql \
+  mcr.microsoft.com/mssql/server:2022-latest
+```
+
+Tek tırnakları bırakın; yalnız `<CONTAINER_DB_PAROLASI>` metnini kendi parolanızla
+değiştirin. Bu komut parolayı doğrudan MSSQL container'ına verir. `.env` veya
+`.NET user-secrets` MSSQL container'ı tarafından okunmaz.
+
+Container'ın hazır olduğunu kontrol edin:
+
+```bash
+docker exec assetvalueanalyzer-mssql \
+  /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P '<CONTAINER_DB_PAROLASI>' -C -Q 'SELECT 1'
+```
+
+Komut bir satırında `1` döndürmelidir. Container henüz başlıyorsa birkaç saniye
+bekleyip aynı kontrolü yeniden çalıştırın. Logları görmek için:
+
+```bash
+docker logs assetvalueanalyzer-mssql
+```
+
+### 3. Container DB connection string'ini kaydedin
+
+Aşağıdaki connection string formatını proje verir. Siz yalnız
+`<CONTAINER_DB_PAROLASI>` bölümünü 1. adımda seçtiğiniz aynı parolayla değiştirirsiniz:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:AssetValueAnalyzer" \
+  "Server=localhost,1433;Database=AssetValueAnalyzer;User Id=sa;Password=<CONTAINER_DB_PAROLASI>;Encrypt=True;TrustServerCertificate=True" \
+  --project src/AssetValueAnalyzer.Web
+```
+
+Bu komut tamamlanmış connection string'i bilgisayarınızdaki .NET development
+secret store'una kaydeder. Repository'deki herhangi bir dosyaya yazmaz.
+
+Connection string alanlarının anlamı:
+
+- `Server=localhost,1433`: az önce başlatılan MSSQL container'ı
+- `Database=AssetValueAnalyzer`: migration ile oluşturulacak proje veritabanı
+- `User Id=sa`: container'ın SQL Server yöneticisi
+- `Password=...`: `docker run` komutunda verdiğiniz aynı parola
+
+### 4. Finmaks API anahtarını kaydedin
+
+```bash
+dotnet user-secrets set "Finmaks:ApiKey" "<FINMAKS_API_KEY>" \
+  --project src/AssetValueAnalyzer.Web
+```
+
+`<FINMAKS_API_KEY>` yerine Finmaks'ın verdiği gerçek anahtarı yazın. Web ve API
+projeleri aynı `UserSecretsId` değerini kullandığı için secret'ları Web projesi
+üzerinden bir kez kaydetmek yeterlidir. API yalnız connection string'i kullanır;
+Finmaks senkronizasyonunu Web hostu yapar.
+
+Sonraki `dotnet run --launch-profile http` komutları uygulamaları `Development`
+ortamında başlatır. .NET bu nedenle yerel `user-secrets` değerlerini otomatik
+olarak configuration'a ekler. Connection string'i kodda veya README'de sabit
+değer olarak tutmak gerekmez.
+
+### 5. Frontend paketlerini ve assetlerini hazırlayın
+
+```bash
+cd src/AssetValueAnalyzer.Web
+pnpm install --frozen-lockfile
+pnpm run assets:build
+cd ../..
+```
+
+İlk komut lock dosyasındaki tam frontend bağımlılıklarını kurar. İkinci komut
+Tailwind CSS, font ve SignalR browser dosyalarını `wwwroot` altına üretir.
+
+### 6. .NET solution'ını hazırlayın
+
+```bash
+dotnet restore AssetValueAnalyzer.sln
+dotnet build AssetValueAnalyzer.sln --no-restore
+```
+
+Build sonunda hata veya uyarı beklenmez.
+
+### 7. Web'i çalıştırın
+
+Bir terminalde:
+
+```bash
+dotnet run --project src/AssetValueAnalyzer.Web --launch-profile http
+```
+
+Web adresi: `http://localhost:5271`.
+
+Elle migration komutu çalıştırmanız gerekmez. Web başlangıçta 3. adımda kaydedilen
+connection string'i okur ve bekleyen EF Core migration'larını container MSSQL'e
+otomatik uygular. İlk kurulumda `AssetValueAnalyzer` veritabanını ve gerekli
+tabloları oluşturur. Migration tamamlandıktan sonra eksik Finmaks kur verilerini
+MSSQL'e aktarmaya başlar; bu işlem birkaç dakika sürebilir.
+
+Container parolası veya connection string yanlışsa ya da MSSQL henüz hazır
+değilse Web başlamaz ve hata bu terminalde görünür. Ayarı düzeltip aynı
+`dotnet run` komutunu yeniden çalıştırın.
+
+Web health kontrolünü ikinci bir terminalde yapın:
+
+```bash
+curl http://localhost:5271/health
+```
+
+### 8. API'yi çalıştırın
+
+Web çalışmaya devam ederken ayrı bir terminalde:
+
+```bash
+dotnet run --project src/AssetValueAnalyzer.Api --launch-profile http
+```
+
+Manuel API adresi: `http://localhost:5076`.
+
+```bash
+curl http://localhost:5076/health
+curl "http://localhost:5076/api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1"
+```
+
+### 9. Manuel kurulumu durdurun ve yeniden başlatın
+
+Web ve API terminallerinde `Ctrl+C` kullanın. MSSQL container'ını durdurmak için:
+
+```bash
+docker stop assetvalueanalyzer-mssql
+```
+
+Named volume silinmediği için veriler korunur. Daha sonra yeniden başlatmak için:
+
+```bash
+docker start assetvalueanalyzer-mssql
+```
+
+Ardından Web ve API için 7. ve 8. adımlardaki `dotnet run` komutlarını yeniden
+çalıştırın.
+
+## Yol 3 — Manuel Web/API + mevcut veya uzak MSSQL
+
+Bu yolda Docker ve `.env` kullanılmaz. Web ve API bilgisayarda `dotnet run` ile,
+veritabanı ise erişebildiğiniz mevcut bir SQL Server üzerinde çalışır. SQL Server
+macOS'ta native çalışmadığı için Mac kullanıcısı bu yol için başka bir makinedeki
+veya buluttaki SQL Server'a erişmelidir.
+
+### Gereksinimler
+
+- Manuel sürüm kurulum bölümündeki .NET SDK, Node.js ve pnpm
+- Finmaks tarafından verilmiş gerçek API anahtarı
+- SQL Server sunucu adı veya IP adresi
+- SQL Server TCP portu; değiştirilmediyse genellikle `1433`
+- SQL kullanıcı adı ve parolası
+- Boş `AssetValueAnalyzer` veritabanı veya bu veritabanını oluşturma yetkisi
+- Migration'ın tablo ve index oluşturabilmesi için gerekli veritabanı yetkileri
+
+### 1. MSSQL bilgilerini alın
+
+Bu yöntemde MSSQL parolasını AssetValueAnalyzer oluşturmaz. Parola:
+
+- şirket/uzak sunucu yöneticisinin size verdiği mevcut SQL hesabının parolasıdır veya
+- SQL hesabını siz yönetiyorsanız hesabı oluştururken sizin belirlediğiniz paroladır.
+
+Sunucu size ait değilse veritabanı yöneticisinden şu beş bilgiyi alın:
+
+1. Sunucu adı veya IP adresi
+2. SQL Server portu
+3. Veritabanı adı (`AssetValueAnalyzer` önerilir)
+4. SQL kullanıcı adı
+5. SQL kullanıcı parolası
+
+Hesap veritabanı oluşturamıyorsa yöneticiden boş `AssetValueAnalyzer`
+veritabanını oluşturmasını ve hesaba bu veritabanında migration uygulayacak yetki
+vermesini isteyin.
+
+### 2. Mevcut MSSQL connection string'ini kaydedin
+
+Proje connection string formatını aşağıda verir. Köşeli placeholder'ların tamamını
+1. adımda aldığınız gerçek MSSQL bilgileriyle değiştirin:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:AssetValueAnalyzer" \
+  "Server=<MSSQL_SUNUCU_ADI>,<MSSQL_PORTU>;Database=<VERİTABANI_ADI>;User Id=<MSSQL_KULLANICISI>;Password=<MSSQL_PAROLASI>;Encrypt=True;TrustServerCertificate=True" \
+  --project src/AssetValueAnalyzer.Web
+```
+
+Örneğin sunucu `sql.example.local`, port `1433`, veritabanı
+`AssetValueAnalyzer` ve kullanıcı `assetvalueapp` ise yalnız bu değerler ile o
+kullanıcının gerçek parolası yazılır. README'de hazır veya ortak bir connection
+string parolası bulunmaz.
+
+Sunucu yöneticiniz geçerli ve güvenilen bir TLS sertifikası kullanıyorsa
+`TrustServerCertificate=True` yerine `False` kullanın. Bağlantı politikasını
+sunucu yöneticiniz belirlemelidir.
+
+### 3. Finmaks API anahtarını kaydedin
+
+```bash
+dotnet user-secrets set "Finmaks:ApiKey" "<FINMAKS_API_KEY>" \
+  --project src/AssetValueAnalyzer.Web
+```
+
+`<FINMAKS_API_KEY>` yerine Finmaks'ın verdiği gerçek anahtarı yazın. Connection
+string ve API anahtarı yalnız yerel .NET development secret store'unda tutulur;
+repository'ye veya `.env` dosyasına yazılmaz.
+
+Web ve API aynı `UserSecretsId` değerini kullandığı için iki secret'ı Web projesi
+üzerinden bir kez kaydetmek iki manuel host için de yeterlidir. Sonraki
+`dotnet run --launch-profile http` komutları `Development` ortamını seçer ve .NET
+bu secret store'u otomatik olarak configuration'a ekler.
+
+### 4. Frontend paketlerini ve assetlerini hazırlayın
+
+```bash
+cd src/AssetValueAnalyzer.Web
+pnpm install --frozen-lockfile
+pnpm run assets:build
+cd ../..
+```
+
+### 5. .NET solution'ını hazırlayın
+
+```bash
+dotnet restore AssetValueAnalyzer.sln
+dotnet build AssetValueAnalyzer.sln --no-restore
+```
+
+### 6. Web'i çalıştırın
+
+Bir terminalde:
+
+```bash
+dotnet run --project src/AssetValueAnalyzer.Web --launch-profile http
+```
+
+Web adresi: `http://localhost:5271`.
+
+Elle migration komutu çalıştırmanız gerekmez. Web başlangıçta 2. adımda
+kaydedilen connection string ile mevcut MSSQL'e bağlanır ve bekleyen EF Core
+migration'larını otomatik uygular. Veritabanı mevcut değilse SQL hesabının
+veritabanı oluşturma yetkisi olmalıdır. Veritabanı yönetici tarafından önceden
+oluşturulduysa hesabın bu veritabanında tablo ve index oluşturma yetkisi yeterlidir.
+
+`Login failed` hatası kullanıcı/parola veya SQL erişimi sorunudur. `CREATE DATABASE
+denied` ya da `CREATE TABLE permission denied` hatası alınırsa MSSQL yöneticisinin
+kullanıcı yetkilerini düzeltmesi gerekir. Ayar düzeltildikten sonra aynı
+`dotnet run` komutu yeniden çalıştırılır.
+
+Migration tamamlandıktan sonra Web eksik Finmaks kur verilerini uzak MSSQL'e
+aktarır. Bu yüzden sunucunun erişilebilir ve Finmaks API anahtarının doğru olması
+gerekir.
+
+Web health kontrolünü ikinci bir terminalden yapın:
+
+```bash
+curl http://localhost:5271/health
+```
+
+### 7. API'yi çalıştırın
+
+Web çalışmaya devam ederken ayrı bir terminalde:
+
+```bash
+dotnet run --project src/AssetValueAnalyzer.Api --launch-profile http
+```
+
+Manuel API adresi: `http://localhost:5076`.
+
+```bash
+curl http://localhost:5076/health
+curl "http://localhost:5076/api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1"
+```
+
+Web ve API'yi durdurmak için çalıştıkları terminallerde `Ctrl+C` kullanın. Uzak
+MSSQL'in durdurulması veya yedeklenmesi o sunucunun yöneticisinin sorumluluğundadır.
+
+## Kullanım
+
+1. Ana sayfadan Aylık Varlık Verisi XLSX dosyasını yükleyin.
+2. Yİ-ÜFE Endeks Verisi XLSX dosyasını yükleyin.
+3. Rapor dönemini seçin veya dosyadaki ilk ve son ayın kullanılmasına izin verin.
+4. Kontrol ekranından analizi oluşturun.
+5. Sonuçları inceleyin veya raporu XLSX olarak indirin.
+
+Sentetik örnek dosyalar web arayüzünden indirilebilir:
+
+- `src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx`
+- `src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx`
+
+Gerçek şirket dosyaları ve hassas finansal veriler repository'de tutulmaz.
+
+## Kur API'si
+
+API ayrı bir ASP.NET Core hostudur ve yalnız MSSQL'de bulunan kur kayıtlarını
+okur. EF entity'leri doğrudan dışarı verilmez; response DTO kullanılır.
+
+| Çalıştırma yöntemi | API base adresi |
+| --- | --- |
+| Yol 1 — Docker Compose | `http://localhost:5272` |
+| Yol 2 veya Yol 3 — Manuel | `http://localhost:5076` |
+
+| Method | Endpoint | Açıklama |
+| --- | --- | --- |
+| `GET` | `/health` | API ve veritabanı hazırlık kontrolü |
+| `GET` | `/api/exchange-rates/latest` | En son veya belirli güne ait kur kayıtları |
+| `GET` | `/api/exchange-rates` | Tarih aralığındaki kur kayıtları |
+
+### Tarayıcıdan hızlı kontrol
+
+Docker Compose çalışırken aşağıdaki adresler doğrudan tarayıcının adres çubuğuna
+yazılabilir:
+
+- Health: `http://localhost:5272/health`
+- En güncel USD/TRY kaydı:
+  `http://localhost:5272/api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1`
+- Aralık 2021 USD/TRY kayıtları:
+  `http://localhost:5272/api/exchange-rates?startDate=2021-12-01&endDate=2021-12-31&baseCurrencyCode=1&foreignCurrencyCode=56&limit=200`
+
+`localhost` yalnız uygulamanın çalıştığı bilgisayarı ifade eder. API internete
+deploy edilirse aynı path'lerin başındaki `http://localhost:5272` bölümü gerçek
+sunucu adresiyle değiştirilir; örneğin
+`https://example.com/api/exchange-rates/latest`.
+
+### Güncel veya belirli gün sorgusu
+
+```text
+GET /api/exchange-rates/latest
+```
+
+Opsiyonel query parametreleri:
+
+- `rateDate=YYYY-MM-DD`
+- `baseCurrencyCode`
+- `foreignCurrencyCode`
+- `limit` — varsayılan `100`, izin verilen aralık `1–200`
+
+Örnek USD/TRY sorgusu:
+
+```bash
+curl "http://localhost:5272/api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1"
+```
+
+### Tarih aralığı sorgusu
+
+```text
+GET /api/exchange-rates
+```
+
+- `startDate=YYYY-MM-DD` ve `endDate=YYYY-MM-DD` birlikte zorunludur.
+- Para kodları ve `limit` opsiyoneldir.
+
+```bash
+curl "http://localhost:5272/api/exchange-rates?startDate=2021-12-01&endDate=2021-12-31&baseCurrencyCode=1&foreignCurrencyCode=56&limit=200"
+```
+
+Başarılı cevaplar JSON dizi döndürür. Geçersiz sorgular `400
+ValidationProblemDetails`, eşleşmeyen sorgular `404 ProblemDetails` döndürür.
+
+## Testler
+
+Tüm testleri çalıştırmak için:
+
+```bash
+dotnet test AssetValueAnalyzer.sln --no-restore
+```
+
+Yalnız API ve API startup testleri:
+
+```bash
+dotnet test tests/AssetValueAnalyzer.IntegrationTests/AssetValueAnalyzer.IntegrationTests.csproj \
+  --no-restore \
+  --filter "FullyQualifiedName~ExchangeRatesApiTests|FullyQualifiedName~DatabaseStartupHostTests"
+```
+
+Son doğrulanan durum:
+
+- Unit: `44/44`
+- Integration: `110/110`
+- Toplam: `154/154`
+- API odaklı integration testleri: `13/13`
+- Build: `0` hata, `0` uyarı
+
+Test ortamı gerçek Finmaks servisine, production MSSQL'e veya çalışan Hangfire
+kuyruğuna bağlanmaz. Dış bağımlılıklar kontrollü test double'larıyla değiştirilir.
+
+## Temel iş kuralları
+
+- Import formatı yalnız şirketin sabit şablonlarıyla uyumlu `.xlsx` dosyalarıdır.
+- Yüklenen finansal dosyalar MSSQL'e yazılmaz; iki saatlik kullanıcı session'ında tutulur.
+- MSSQL'de Finmaks `ExchangeRates` listesindeki bütün para çiftleriyle birlikte
+  `BaseCurrencyCode`, `ForeignCurrencyCode`, `ChangeRate`, `ExchangeRate`,
+  `CashChangeRate`, `CashExchangeRate`, `CentralBankChangeRate`,
+  `CentralBankExchangeRate`, `CrossRate` ve `CurrentDate` alanları tutulur.
+- Finmaks response header'ındaki işlem metadata'sı saklanmaz; kaydın alınma zamanı
+  ayrıca `RetrievedAtUtc` olarak tutulur.
+- USD/TRY için `BaseCurrencyCode = 1`, `ForeignCurrencyCode = 56` ve
+  `CashChangeRate` kullanılır.
+- Aylık kur, ayın son hafta gününden başlayarak en fazla 10 takvim günü geriye
+  aranır.
+- Finansal hesaplamalarda `decimal` kullanılır; yuvarlama presentation katmanında yapılır.
+- Aynı para çifti ve gün için kur senkronizasyonu idempotent çalışır.
 
 ## Solution yapısı
 
 ```text
-AssetValueAnalyzer.sln
 src/
 ├── AssetValueAnalyzer.Domain
 ├── AssetValueAnalyzer.Application
 ├── AssetValueAnalyzer.Infrastructure
 ├── AssetValueAnalyzer.Web
 └── AssetValueAnalyzer.Api
+
 tests/
 ├── AssetValueAnalyzer.UnitTests
 └── AssetValueAnalyzer.IntegrationTests
@@ -72,430 +672,12 @@ Domain <- Application <- Web / Api
         Infrastructure
 ```
 
-- `Domain`: Kur entity'si ve framework'ten bağımsız temel kurallar.
-- `Application`: Import sözleşmeleri, kur senkronizasyonu, rapor doğrulama ve hesaplama.
-- `Infrastructure`: EF Core/MSSQL, Finmaks client, XLSX parser ve Hangfire job wiring'i.
-- `Web`: MVC controller'ları, Razor Views, session çalışma alanı ve tarayıcı kodu.
-- `Api`: Read-only güncel kur controller'ı, query validation, response DTO ve
-  `ProblemDetails` sözleşmesi.
-
-Generic repository, MediatR, CQRS ve AutoMapper kullanılmaz. İş kuralları
-controller veya Razor view içine taşınmaz.
-
-## Çalışan akış
-
-### 1. Kur başlangıç senkronizasyonu
-
-```text
-Web uygulaması başlar
-→ ExchangeRateInitializationHostedService scope oluşturur
-→ InitializeExchangeRatesService tüm-kur backfill checkpoint'ini okur
-→ checkpoint yoksa 2021-12-01'den bugüne bütün kurları ister
-→ checkpoint eskiyse son tamamlanan gün ile bugün arasını bütün kurlar için ister
-→ Finmaks typed client response'taki bütün para çiftlerini normalize eder
-→ EF Core aynı para çifti ve gün için insert/update/unchanged uygular
-→ tarihli istek veri döndürdüyse checkpoint bugüne ilerletilir
-```
-
-Başlangıç senkronizasyonu hata alırsa hata loglanır ve web hostu çalışmaya devam
-eder. Tamamlanma kararı herhangi bir para biriminin minimum/maksimum tarihinden
-çıkarılmaz; checkpoint, ilgili tarih aralığı için Finmaks'ın döndürdüğü bütün para
-çiftlerinin başarıyla işlendiğini gösterir. Tarihli istek boş dönerse checkpoint
-ilerletilmez ve sonraki açılışta yeniden denenir. Migration yalnız tablo/index ve
-checkpoint şemasını kurar; Finmaks verisini migration değil, Web hostunun bu
-başlangıç akışı çeker. Mevcut veritabanında yeni checkpoint ilk başta boş olduğu
-için migration sonrasındaki ilk Web açılışı bütün tarihsel kurları bir kez yeniden
-doğrular; sonraki açılışlar yalnız eksik aralığı tamamlar.
-
-### 2. Periyodik kur senkronizasyonu
-
-```text
-Hangfire recurring scheduler her 3 dakikada bir job enqueue eder
-→ Hangfire job için yeni bir DI scope oluşturur
-→ ExchangeRateSynchronizationJob mevcut Application servisini çağırır
-→ tarih parametresi verilmeden yalnız bugünün Finmaks kurları istenir
-→ aynı kur değerleri duplicate üretmez; RetrievedAtUtc son başarılı çekişe yenilenir
-→ değişen kur alanları varsa aynı business key üzerinde update edilir
-→ başarılı işlem Application bildirim portunu çağırır
-→ Web implementasyonu bağlı tarayıcılara SignalR tamamlanma olayı gönderir
-→ tarayıcı `/exchange-rates/card` partial'ını yeniden okuyup yalnız kur kartını değiştirir
-```
-
-Periyot `ExchangeRateRecurringJob:IntervalMinutes` ayarıyla değiştirilebilir;
-cron kararlılığı için değer 60'ı kalansız bölmelidir. Hangfire dashboard endpointi
-bilinçli olarak açılmamıştır. Job üç otomatik retry ve 120 saniyelik concurrent
-execution kilidi kullanır; kalıcı idempotency güvencesi MSSQL unique indexidir.
-Startup senkronizasyonu ile Hangfire aynı business key'i eşzamanlı eklerse unique
-index veriyi korur; ikinci işlem EF state'ini temizleyip DB'yi yalnız bir kez daha
-okuyarak update/unchanged yolundan tamamlanır.
-
-Projede gözlemlenen Finmaks test API davranışında yayımlanan günlük kur gün içinde
-değişmemektedir. Bu nedenle karttaki trend, son üç dakikayı değil son yayımlanan
-USD/TRY kur gününü bir önceki kur günüyle karşılaştırır. Kart gerçek kur tarihini
-ayrıca gösterir; sistem tarihi daha yeni olduğu hâlde bugünün kaydı henüz
-yayımlanmadıysa `Bugünün kuru bekleniyor` durumuna geçer. Hangfire yine her üç
-dakikada bir bugünü kontrol eder. `Son kontrol`, kartta gösterilen kur kaydının
-DB'ye son başarılı alınma zamanıdır; Finmaks boş cevap verdiğinde ortada yenilenecek
-bir kur kaydı olmadığı için bu zaman değişmez.
-
-### 3. Dosya yükleme ve session
-
-```text
-POST Aylık Varlık/Yİ-ÜFE dosyası
-→ 5 MB sınırı ve desteklenen uzantı kontrolü
-→ sabit şirket şablonuna uygun XLSX parser
-→ ortak aylık normalize model ve validation
-→ geçerliyse kullanıcının session'ına kaydet
-→ geçersizse yalnız ilgili dosyanın durumunu temizle ve 422 döndür
-```
-
-Yüklenen finansal veriler MSSQL'e yazılmaz. Kullanıcının normalize dosya verileri
-ve tamamlanan raporu, iki saatlik in-memory session içinde tutulur. MSSQL'de
-kalıcı olarak yalnız kur verileri bulunur.
-
-### 4. Rapor oluşturma
-
-```text
-POST /reports/create
-→ session'daki iki veri setini oku
-→ tarih aralığını ve eksik Yİ-ÜFE aylarını doğrula
-→ her varlık ayı için ayın son hafta gününü bul
-→ o tarihten en fazla 10 takvim günü gerideki USD/TRY CashChangeRate'i seç
-→ 14 kolonlu finansal hesabı decimal ile yap
-→ presentation sınırında Türkçe para/yüzde formatı uygula
-→ sonucu session'a kaydet
-→ /reports sonuç ekranına yönlendir
-```
-
-Arada ay bulunmayan varlık dosyalarında yalnız mevcut varlık ayları rapora girer;
-gerçek önceki takvim ayı yoksa üç "önceki aya göre" değişim kolonu `—` gösterilir.
-Diğer nominal, dolarizasyon ve enflasyonizasyon değerleri hesaplanmaya devam eder.
-
-### 5. Ayrı kur API'si
-
-```text
-GET /api/exchange-rates/latest veya GET /api/exchange-rates
-→ query string tarih/para kodu/limit validation
-→ Application IExchangeRateReader portu
-→ EF Core AsNoTracking ve doğrudan read model projection
-→ latest isteğinde filtrelere uyan en son/istenen gün
-→ tarihçe isteğinde başlangıç ve bitiş dahil aralık sorgusu
-→ API response DTO mapping
-→ eşleşme yoksa 404 ProblemDetails, geçersiz query'de 400 ValidationProblemDetails
-```
-
-API entity `Id` değerini veya EF entity'sini dışarı vermez. Tarihçe endpointinde
-`startDate` ve `endDate` birlikte zorunludur; iki sınır da sorguya dahildir.
-`limit` varsayılan 100, izin verilen aralık 1–200'dür. Swagger/OpenAPI paketi
-şartname kapsamında gerekli olmadığı için eklenmemiş; endpoint sözleşmesi README
-ve integration testlerinde belgelenmiştir. Ayrı API hostu Finmaks'a doğrudan
-çıkmaz; yalnız MSSQL'de kalıcılaştırılmış kur verilerini okuduğu için Finmaks API
-key'ine veya Hangfire/import servislerine bağımlı değildir.
-
-## Gereksinimler
-
-Docker ile kurulum için Docker Desktop/Engine ve Docker Compose gerekir. Manuel
-kurulum için:
-
-- .NET SDK 10
-- Erişilebilir MSSQL instance'ı
-- Node.js 20 veya üzeri
-- pnpm 11 (`package.json` şu anda `pnpm@11.16.0` kullanır)
-- EF migration komutları için `dotnet-ef` 10
-
-Sürümleri kontrol etmek için:
-
-```bash
-dotnet --version
-dotnet ef --version
-node --version
-pnpm --version
-```
-
-## Secret ve veritabanı yapılandırması
-
-Web ve API projeleri aynı development `UserSecretsId` değerini kullanır. İki host
-da MSSQL connection string'ini kullanır; Finmaks API key'i yalnız kur
-senkronizasyonunu yapan Web hostu için gereklidir. Gerçek Finmaks API key'i ve
-MSSQL parolası repository'ye yazılmaz.
-
-Repository kökünde kendi MSSQL bilgilerinizi kullanarak:
-
-```bash
-dotnet user-secrets set "ConnectionStrings:AssetValueAnalyzer" "Server=localhost,1433;Database=AssetValueAnalyzer;User Id=sa;Password=<YOUR_PASSWORD>;TrustServerCertificate=True" --project src/AssetValueAnalyzer.Web
-dotnet user-secrets set "Finmaks:ApiKey" "<YOUR_FINMAKS_API_KEY>" --project src/AssetValueAnalyzer.Web
-```
-
-Finmaks test adresi source-controlled `appsettings.json` içinde bulunur. API key
-yalnız user-secrets veya environment variable üzerinden verilmelidir.
-
-Environment variable karşılıkları:
-
-```text
-ConnectionStrings__AssetValueAnalyzer
-Finmaks__ApiKey
-ExchangeRateRecurringJob__Enabled
-ExchangeRateRecurringJob__IntervalMinutes
-```
-
-## Docker Compose ile çalıştırma
-
-Repository kökünde örnek environment dosyasını kopyalayıp iki zorunlu secret'ı
-kendi değerlerinizle değiştirin:
-
-```bash
-cp .env.example .env
-```
-
-`.env` içindeki `MSSQL_SA_PASSWORD` güçlü bir MSSQL `sa` parolası,
-`FINMAKS_API_KEY` ise teslimi değerlendiren kişinin kullanacağı Finmaks anahtarı
-olmalıdır. Gerçek `.env` gitignored'dır; Docker build context'ine veya image'a
-girmez.
-
-Üç servisi sıfırdan build edip sağlık kontrollerini bekleyerek başlatın:
-
-```bash
-docker compose up --build --wait
-```
-
-Başlangıç sırası şöyledir:
-
-```text
-MSSQL healthcheck
-→ Web iki EF migration'ı otomatik uygular
-→ Hangfire ve başlangıç kur senkronizasyonu başlar
-→ Web healthcheck
-→ API veritabanı bağlantısını ve migration durumunu doğrular
-→ API healthcheck
-```
-
-Varsayılan adresler:
-
-- Web: `http://localhost:5271`
-- API: `http://localhost:5272`
-- MSSQL: `localhost,1433`
-- Web/API health: sırasıyla `http://localhost:5271/health` ve
-  `http://localhost:5272/health`
-
-Bu host portları `.env` içindeki `WEB_PORT`, `API_PORT` ve `MSSQL_PORT` ile
-değiştirilebilir. Compose portları yalnız `127.0.0.1` adresine bağlar ve container
-içinde TLS sonlandırmaz; public deployment'ta HTTPS bir reverse proxy veya
-platform ingress katmanında kurulmalıdır. Web/API container'ları tarih ve saat
-sunumu için `Europe/Istanbul` timezone'u ile çalışır.
-
-Image'lar multi-stage build kullanır: pnpm katmanı frontend assetlerini üretir,
-.NET SDK katmanı Web/API publish çıktısını oluşturur, final image'lar yalnız
-ASP.NET Core runtime ve publish çıktısını taşır. Hosttaki yerel klasörleri tek tek
-adlandırmak yerine Docker build context'i allowlist ile yalnız `src/` içeriğini
-alır. Web ve API final container'ları non-root `app` kullanıcısıyla çalışır.
-
-MSSQL verisi ve Web Data Protection anahtarları named volume'larda korunur.
-Container'ları veriyi silmeden durdurup kaldırmak için:
-
-```bash
-docker compose down
-```
-
-`docker compose down --volumes` MSSQL verisini kalıcı olarak siler; yalnız temiz
-kurulum yapmak istediğinizde kullanılmalıdır. Apple Silicon cihazlarda SQL Server
-2022 image'ı `linux/amd64` emülasyonuyla çalıştığı için ilk açılış daha uzun
-sürebilir.
-
-## İlk kurulum
-
-Repository kökünde:
-
-```bash
-cd src/AssetValueAnalyzer.Web
-pnpm install --frozen-lockfile
-pnpm run assets:build
-cd ../..
-
-dotnet restore AssetValueAnalyzer.sln
-dotnet build AssetValueAnalyzer.sln --no-restore
-```
-
-`assets:build` komutu; Tailwind CSS ve SignalR browser dosyasına ek olarak lisanslı
-Inter/Manrope variable fontlarını da `wwwroot` altına kopyalar. Böylece arayüz
-harici bir font CDN'ine ihtiyaç duymadan her makinede aynı tipografiyi kullanır.
-
-Web hostu her açılışta migration geçmişini kontrol eder ve yalnız bekleyen
-migration'ları otomatik uygular. Migration başarılı olmadan Hangfire, kur
-başlangıç senkronizasyonu veya HTTP sunucusu başlamaz. API şemayı değiştirmez;
-bağlantı kurulamazsa veya migration bekliyorsa anlaşılır startup hatasıyla kapanır.
-
-Migration'ları Web'i başlatmadan önce manuel uygulamak isterseniz fallback komutu:
-
-```bash
-dotnet ef database update \
-  --project src/AssetValueAnalyzer.Infrastructure \
-  --startup-project src/AssetValueAnalyzer.Web
-```
-
-Bu komut `ExchangeRates` tablosunu,
-`(BaseCurrencyCode, ForeignCurrencyCode, RateDate)` unique indexini ve
-tüm-kur başlangıç senkronizasyonunu izleyen tek satırlık
-`ExchangeRateBackfillCheckpoints` tablosunu oluşturur.
-Web uygulaması ilk kez başladığında Hangfire kendi operasyonel tablolarını aynı
-veritabanındaki ayrı `HangFire` şemasında otomatik hazırlar.
-
-## Uygulamayı çalıştırma
-
-```bash
-dotnet run --project src/AssetValueAnalyzer.Web/AssetValueAnalyzer.Web.csproj
-```
-
-Terminalde yazan HTTP/HTTPS adresini tarayıcıda açın.
-
-Ayrı API hostunu çalıştırmak için:
-
-```bash
-dotnet run --project src/AssetValueAnalyzer.Api/AssetValueAnalyzer.Api.csproj
-```
-
-API hostu yalnız `ConnectionStrings:AssetValueAnalyzer` yapılandırmasını ister;
-Finmaks API key'i olmadan veritabanındaki mevcut kur kayıtlarını sunabilir.
-Periyodik kur senkronizasyonunu Web hostundaki Hangfire yürütür; API aynı MSSQL
-veritabanındaki kayıtları salt okunur biçimde sunar. Bu nedenle kurların periyodik
-olarak yenilenmesi için tarayıcının değil, Web sunucu prosesinin çalışıyor olması
-gerekir.
-
-CSS üzerinde çalışırken ayrı terminalde:
-
-```bash
-cd src/AssetValueAnalyzer.Web
-pnpm run css:watch
-```
-
-## Ekranlar ve HTTP işlemleri
-
-- `GET /`: Kur kartı, Aylık Varlık Verisi/Yİ-ÜFE Endeks Verisi yükleme alanları ve finansal etki analizi akışı.
-- `GET /health`: Web hostunun startup ve migration aşamasını tamamladığını gösteren health endpointi.
-- `GET /reports/download`: Session'daki tamamlanmış finansal etki raporunu XLSX dosyası olarak indirir.
-- `GET /exchange-rates/card`: SignalR bildirimi sonrası yeniden okunan kur kartı partial'ı.
-- `/hubs/exchange-rates`: Yalnız senkronizasyon tamamlanma bildirimi taşıyan SignalR hub'ı.
-- `GET /reports`: Boş, taslak veya tamamlanmış rapor çalışma alanı.
-- `POST /imports/assets/validate`: Varlık XLSX doğrulaması.
-- `POST /imports/indices/validate`: Endeks XLSX doğrulaması.
-- `POST /reports/validate-range`: Rapor dönemi ve veri kapsaması doğrulaması.
-- `POST /reports/create`: Finansal etki analizini hesaplayıp raporu oluşturma.
-- `GET /api/exchange-rates/latest`: Ayrı API hostundaki güncel kur listesi.
-- `GET /api/exchange-rates`: Ayrı API hostundaki tarih aralıklı kur listesi.
-- `GET /health`: API hostunun DB şema kontrolünü tamamladıktan sonra sunduğu health endpointi.
-
-Güncel/tek-gün endpointi query parametreleri:
-
-- `rateDate=YYYY-MM-DD`: Belirli kur günü; verilmezse filtrelere uyan en son gün.
-- `baseCurrencyCode`: Opsiyonel baz para kodu.
-- `foreignCurrencyCode`: Opsiyonel karşı para kodu.
-- `limit`: 1–200; varsayılan 100.
-
-Örnek USD/TRY çağrısı:
-
-```text
-GET /api/exchange-rates/latest?baseCurrencyCode=1&foreignCurrencyCode=56&limit=1
-```
-
-Tarihçe endpointi query parametreleri:
-
-- `startDate=YYYY-MM-DD`: Zorunlu başlangıç günü.
-- `endDate=YYYY-MM-DD`: Zorunlu bitiş günü.
-- `baseCurrencyCode`, `foreignCurrencyCode` ve `limit`: Opsiyonel filtreler.
-
-Örnek USD/TRY tarihçe çağrısı:
-
-```text
-GET /api/exchange-rates?startDate=2026-08-01&endDate=2026-08-09&baseCurrencyCode=1&foreignCurrencyCode=56&limit=200
-```
-
-Web arayüzünden indirilebilen örnek veri dosyaları:
-
-- `src/AssetValueAnalyzer.Web/wwwroot/samples/asset-values.xlsx`
-- `src/AssetValueAnalyzer.Web/wwwroot/samples/producer-price-indices.xlsx`
-
-Bu iki dosya, şirket eklerinin satır/sütun sözleşmesini koruyan sentetik
-veriler içerir; gerçek şirket ekleri repository'ye eklenmez.
-
-Şirketin 9 Ağustos 2026 tarihli yazılı açıklamasına göre şartnamedeki XML ifadesi
-hatalıdır. Kullanıcı yalnızca ekteki örneklerle aynı sabit format ve satır/sütun
-yapısındaki XLSX dosyalarını yükleyecektir.
-
-## Finansal hesap kuralları
-
-- Rapor ayı seçilen aralığın son ayıdır.
-- Dolarizasyon kuru USD (`BaseCurrencyCode = 1`) / TRY
-  (`ForeignCurrencyCode = 56`) kaydının `CashChangeRate` alanıdır.
-- Kur araması ayın son takvim gününden başlar; hafta sonu önceki cumaya alınır.
-- Kur bulunamazsa en fazla 10 takvim günü geriye gidilir; yine yoksa rapor üretilmez.
-- Ara hesaplar `decimal` hassasiyetinde tutulur, yuvarlama yalnız view model'de yapılır.
-- Şirket Excel'indeki referans kur fixture'ı formül/kolon anlamını doğrular.
-- Ayrı production fixture'ı uygulamanın `CashChangeRate` seçimiyle 14 değeri doğrular.
-
-Şirket Excel'indeki referans kur değerleri production `CashChangeRate` değerleri
-olmadığından iki test aynı end-to-end sonucu kanıtladığını iddia etmez.
-
-## Testler
-
-Tüm testleri çalıştırmak için:
-
-```bash
-dotnet test AssetValueAnalyzer.sln --no-restore
-```
-
-Son doğrulanan durum:
-
-- Unit test: `44/44`
-- Integration test: `107/107`
-- Toplam: `151/151`
-- Build: `0` hata, `0` uyarı
-
-Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
-mapping'ini, EF upsert davranışını, session/controller akışını, SignalR notifier/hub
-wiring'ini, tüm-kur checkpoint'i yoksa tarihsel backfill yapılmasını, son iş günü
-kur seçimini ve 14 kolonlu finansal hesabı kapsar. HTTP smoke testleri;
-ana sayfanın açılmasını, anti-forgery reddini, eksik dosya hata sözleşmesini ve
-başarılı XLSX upload'ının session cookie ile sonraki isteğe taşınmasını doğrular.
-İndirilebilir iki örneğin otomatik rapor döneminde birlikte çalışması ayrıca
-doğrulanır. Tam akış testi iki XLSX yüklemesinden hesaplanan iki satırlı Razor sonuç
-tablosuna kadar gerçek MVC pipeline'ını çalıştırır. Hangfire testleri; 3 dakikalık
-cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih aralığı
-vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri
-Web hostunun gerçek notifier'ı kullandığını, hub negotiate route'unu ve refetch
-partial sözleşmesini doğrular.
-On bir ayrı API HTTP testi; health endpointini, DTO sözleşmesini, tek-gün/aralık
-filtrelerini, model binding davranışını ve
-`200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular.
-Web ve API test hostları `Testing` ortamında, source-controlled sahte connection
-string ile açılır; user-secrets yüklenmez. Web test hostunda Hangfire ve başlangıç
-senkronizasyonu çalışmaz, Finmaks istemcisi çağrılırsa test anında hata verir. API
-test hostu ise yalnız sahte read-only reader kullanır. Böylece normal `dotnet test`
-gerçek MSSQL, Finmaks veya canlı Hangfire kuyruğuna dokunmaz. MSSQL migration smoke
-kontrolü eski şemaya mevcut bir kur satırı ekleyip checkpoint migration'ına
-yükseltmiş; kur satırının korunduğunu, checkpoint tablosunun boş başladığını ve
-singleton constraint'ini doğruladıktan sonra geçici veritabanını kaldırmıştır.
-İzole Docker Compose teslim kontrolü de boş volume üzerinde iki migration'ın
-uygulanmasını, üç servisin health durumunu, canlı kur backfill/API cevabını ve
-container'lar yeniden oluşturulduğunda MSSQL ile Data Protection volume'larının
-korunmasını doğrulamıştır.
-Gerçek MSSQL'e bağlı API
-smoke kontrolü; en güncel USD/TRY sorgusunda tek DTO, Aralık 2021 aralık sorgusunda
-24 kayıt, geçersiz `limit` için `400` ve bulunmayan tarih için `404` üretmiştir.
-
-## Bilinen kapsam sınırları
-
-- Authentication/authorization şartnamede istenmediği için yoktur.
-- Grafik ve public deployment zorunlu kapsamda değildir; XLSX rapor exportu ekstra
-  özellik olarak tamamlanmıştır.
-- Session in-memory olduğu için uygulama yeniden başlatılırsa taslak ve rapor kaybolur.
-- Çoklu instance deployment için distributed session store henüz yoktur.
-- Import kapsamı şirketin sabit Varlık ve Endeks XLSX şablonlarıyla sınırlıdır.
-
-## Güvenlik
-
-- API key, gerçek connection string ve gerçek/hassas finansal veriler source control'e eklenmez.
-- Finmaks `HttpClient` loglayıcıları query string içindeki API key'in loglanmaması
-  için kaldırılmıştır.
-- Dosyalar en fazla 5 MB olabilir; yalnız XLSX kabul edilir ve ZIP/içerik imzası doğrulanır.
-- Compose, Data Protection key ring'ini kalıcı Docker volume'unda tutar. Public
-  production ortamında bu key ring ayrıca platformun secret/certificate
-  mekanizmasıyla at-rest korunmalıdır.
+## Bilinen sınırlar
+
+- Authentication ve authorization şartnamede istenmediği için yoktur.
+- Session in-memory olduğu için Web yeniden başlatıldığında taslak rapor kaybolur.
+- Çoklu Web instance'ı için distributed session store yapılandırılmamıştır.
+- Public deployment zorunlu kapsamda değildir; HTTPS dış reverse proxy veya
+  platform ingress katmanında sonlandırılmalıdır.
+- Swagger/OpenAPI UI eklenmemiştir; API sözleşmesi bu README ve integration
+  testlerinde belgelenmiştir.
