@@ -31,6 +31,96 @@ etki raporunu web arayüzünde görüntüler veya XLSX olarak indirir.
 - ClosedXML ile XLSX okuma ve üretme
 - xUnit ve `WebApplicationFactory<Program>` integration testleri
 
+## Kaynak kodu bilgisayara alın
+
+Kurulum yönteminden bağımsız olarak önce projeyi bilgisayarınıza indirin. Bunun
+için aşağıdaki iki yöntemden yalnız birini kullanın.
+
+### Yöntem A — Git ile klonlama
+
+Bu yöntemde Git repository'si indirilir ve daha sonra `git pull` ile
+güncellenebilir.
+
+#### 1. Git kurulumunu kontrol edin
+
+```bash
+git --version
+```
+
+Komut bir sürüm numarası döndürmelidir. `git: command not found` benzeri bir hata
+alırsanız [Git'in resmî indirme sayfasından](https://git-scm.com/downloads)
+işletim sisteminize uygun kurulumu tamamlayıp yeni bir terminal açın.
+
+#### 2. Proje için bir ana klasör oluşturun
+
+Terminali projeyi saklamak istediğiniz konumda açın. Aşağıdaki komutlar önce ana
+çalışma klasörünü oluşturur, ardından terminali bu klasörün içine taşır:
+
+```bash
+mkdir asset-value-analyzer-kurulum
+cd asset-value-analyzer-kurulum
+```
+
+#### 3. Repository'yi ana klasörün içine klonlayın
+
+```bash
+git clone https://github.com/berkayozcann/AssetValueAnalyzer.git
+```
+
+Bu işlem bulunduğunuz ana klasörün içinde `AssetValueAnalyzer` adlı yeni bir
+repository klasörü oluşturur. Klasör yapısı şu hâle gelir:
+
+```text
+asset-value-analyzer-kurulum/
+└── AssetValueAnalyzer/
+    ├── AssetValueAnalyzer.sln
+    ├── compose.yaml
+    ├── Dockerfile
+    ├── src/
+    └── tests/
+```
+
+#### 4. Klonlanan repository klasörüne girin
+
+```bash
+cd AssetValueAnalyzer
+```
+
+### Yöntem B — GitHub'dan ZIP indirme
+
+Bu yöntemde bilgisayarda Git kurulu olmak zorunda değildir.
+
+1. Tarayıcıdan
+   [AssetValueAnalyzer GitHub sayfasını](https://github.com/berkayozcann/AssetValueAnalyzer)
+   açın.
+2. **Code** düğmesine, ardından **Download ZIP** seçeneğine basın.
+3. Bilgisayarınızda `asset-value-analyzer-kurulum` adlı bir ana klasör oluşturun.
+4. İndirilen ZIP dosyasını bu ana klasörün içine taşıyıp çıkartın.
+5. ZIP'ten çıkan proje klasörünü terminalde açın. GitHub bu klasörü genellikle
+   `AssetValueAnalyzer-main` adıyla oluşturur:
+
+```bash
+cd asset-value-analyzer-kurulum
+cd AssetValueAnalyzer-main
+```
+
+Çıkan klasörün adı farklıysa ikinci komutta gerçek klasör adını kullanın.
+
+### Proje klasörünü doğrulayın
+
+Git veya ZIP yöntemlerinden hangisini kullandıysanız terminalin son olarak
+`AssetValueAnalyzer.sln` dosyasının bulunduğu proje klasöründe olması gerekir.
+Doğru klasörde olduğunuzu kontrol edin:
+
+```bash
+pwd
+ls
+```
+
+`ls` çıktısında en az `AssetValueAnalyzer.sln`, `compose.yaml`, `Dockerfile`,
+`src` ve `tests` görünmelidir. Bundan sonraki bütün README komutları bu
+`AssetValueAnalyzer` repository klasörünün içinde çalıştırılmalıdır.
+
 ## Kurulum yolunu seçin
 
 Aşağıdaki üç yol birbirinden bağımsızdır. Bir kurulum sırasında yalnız birini
@@ -41,16 +131,6 @@ uygulayın.
 | 1. Tam Docker Compose | Docker container'larında | Docker container'ında | Docker ve Finmaks API anahtarı |
 | 2. Manuel + container DB | Bilgisayarda `dotnet run` ile | Bağımsız Docker container'ında | .NET, Node.js, pnpm, Docker ve Finmaks API anahtarı |
 | 3. Manuel + mevcut MSSQL | Bilgisayarda `dotnet run` ile | Mevcut/uzak SQL Server'da | .NET, Node.js, pnpm, MSSQL erişim bilgileri ve Finmaks API anahtarı |
-
-Repository ZIP olarak teslim edildiyse arşivi açın ve terminali içindeki
-`AssetValueAnalyzer` klasöründe açın. Git ile alınacaksa:
-
-```bash
-git clone https://github.com/berkayozcann/AssetValueAnalyzer.git
-cd AssetValueAnalyzer
-```
-
-README'deki bütün komutlar aksi belirtilmedikçe bu repository kökünde çalıştırılır.
 
 ## Yol 1 — Tam Docker Compose kurulumu
 
@@ -95,6 +175,18 @@ FINMAKS_API_KEY=<FINMAKS_TARAFINDAN_VERİLEN_GERÇEK_ANAHTAR>
 aşamada yeni ve güçlü bir parola belirler ve `=` işaretinden sonra yazar. Compose
 aynı değeri hem MSSQL container'ını oluştururken hem de Web/API connection
 string'lerini üretirken kullanır.
+
+MSSQL container parolası şu şartları sağlamalıdır:
+
+- En az `8`, en fazla `128` karakter olmalıdır.
+- Büyük harf, küçük harf, rakam ve sembol gruplarının en az üçünden karakter
+  içermelidir.
+
+Örneğin `GucluDb!2026` bu yapıyı gösterir; güvenlik için bu örneği aynen
+kullanmayın, kendinize ait farklı bir parola belirleyin. Şartlar sağlanmazsa MSSQL
+container kurulumu tamamlayamaz ve kapanır. Ayrıntılar için
+[Microsoft'un SQL Server container parola kurallarına](https://learn.microsoft.com/en-us/sql/linux/install-upgrade/quickstart-install-docker?view=sql-server-ver17#change-the-sa-password)
+bakabilirsiniz.
 
 `FINMAKS_API_KEY` kullanıcı tarafından uydurulamaz; Finmaks tarafından sağlanan
 gerçek anahtar yazılmalıdır. `.env` git tarafından izlenmez ve commit edilmemelidir.
@@ -231,7 +323,9 @@ parolası yazacaksınız. Bu parolayı iki yerde aynı kullanmanız gerekir:
 1. MSSQL container'ını oluştururken `MSSQL_SA_PASSWORD` değerinde.
 2. Manuel Web/API için kaydedilen connection string'in `Password` bölümünde.
 
-Uygulama bu parolayı üretmez veya sizin yerinize belirlemez.
+Parola `8–128` karakter olmalı ve büyük harf, küçük harf, rakam ve sembol
+gruplarının en az üçünden karakter içermelidir. Uygulama bu parolayı üretmez veya
+sizin yerinize belirlemez. Bu şartlar sağlanmazsa MSSQL container başlatılamaz.
 
 ### 2. MSSQL volume'ünü ve container'ını oluşturun
 
