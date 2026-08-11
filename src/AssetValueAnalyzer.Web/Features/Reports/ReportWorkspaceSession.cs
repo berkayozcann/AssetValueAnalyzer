@@ -22,6 +22,8 @@ public interface IReportWorkspaceSession
 
     void SaveCompletedReport(ReportPageViewModel report);
 
+    void SaveWizardState(ReportWizardStateSnapshot wizardState);
+
     void Clear();
 }
 
@@ -32,11 +34,21 @@ public sealed record ReportWorkspaceSnapshot(
 {
     public static ReportWorkspaceSnapshot Empty { get; } = new(null, null, null);
 
+    public ReportWizardStateSnapshot WizardState { get; init; } = ReportWizardStateSnapshot.Empty;
+
     public ReportWorkspaceStatus Status => CompletedReport is not null
         ? ReportWorkspaceStatus.Completed
         : AssetValues is not null || ProducerPriceIndices is not null
             ? ReportWorkspaceStatus.Draft
             : ReportWorkspaceStatus.Empty;
+}
+
+public sealed record ReportWizardStateSnapshot(
+    int Step,
+    DateOnly? StartMonth,
+    DateOnly? EndMonth)
+{
+    public static ReportWizardStateSnapshot Empty { get; } = new(1, null, null);
 }
 
 public sealed record ReportDataFileSnapshot(
@@ -99,7 +111,8 @@ public sealed class ReportWorkspaceSession(
         Save(current with
         {
             AssetValues = file,
-            CompletedReport = null
+            CompletedReport = null,
+            WizardState = ReportWizardStateSnapshot.Empty
         });
     }
 
@@ -117,7 +130,8 @@ public sealed class ReportWorkspaceSession(
         Save(current with
         {
             ProducerPriceIndices = file,
-            CompletedReport = null
+            CompletedReport = null,
+            WizardState = ReportWizardStateSnapshot.Empty
         });
     }
 
@@ -127,7 +141,8 @@ public sealed class ReportWorkspaceSession(
         Save(current with
         {
             AssetValues = null,
-            CompletedReport = null
+            CompletedReport = null,
+            WizardState = ReportWizardStateSnapshot.Empty
         });
     }
 
@@ -137,14 +152,25 @@ public sealed class ReportWorkspaceSession(
         Save(current with
         {
             ProducerPriceIndices = null,
-            CompletedReport = null
+            CompletedReport = null,
+            WizardState = ReportWizardStateSnapshot.Empty
         });
     }
 
     public void SaveCompletedReport(ReportPageViewModel report)
     {
         var current = Get();
-        Save(current with { CompletedReport = report });
+        Save(current with
+        {
+            CompletedReport = report,
+            WizardState = ReportWizardStateSnapshot.Empty
+        });
+    }
+
+    public void SaveWizardState(ReportWizardStateSnapshot wizardState)
+    {
+        var current = Get();
+        Save(current with { WizardState = wizardState });
     }
 
     public void Clear() => Session.Remove(SessionKey);

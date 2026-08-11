@@ -106,6 +106,77 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("--color-brand-400:#245c63", css);
         Assert.Contains("--color-step-muted:#666e69", css);
         Assert.Contains(".md\\:sticky{position:sticky}", css);
+        Assert.Contains("font-display:optional", css);
+        Assert.Contains("rel=\"preload\" href=\"/fonts/inter-latin-wght-normal.woff2\"", html);
+        Assert.Contains("rel=\"preload\" href=\"/fonts/inter-latin-ext-wght-normal.woff2\"", html);
+        Assert.Contains("rel=\"preload\" href=\"/fonts/manrope-latin-wght-normal.woff2\"", html);
+        Assert.Contains("rel=\"preload\" href=\"/fonts/manrope-latin-ext-wght-normal.woff2\"", html);
+    }
+
+    [Fact]
+    public async Task SharedStyles_AnimateOnlyAppControlledNavigation_NotRefresh()
+    {
+        using var client = CreateClient();
+
+        var html = await client.GetStringAsync("/");
+        var css = await client.GetStringAsync("/css/app.css");
+        var javascript = await client.GetStringAsync("/js/app.js");
+
+        Assert.DoesNotContain("@view-transition", css);
+        Assert.DoesNotContain("page-fallback-enter", css);
+        Assert.DoesNotContain("pageTransition", html);
+        Assert.Contains("AssetValueAnalyzer.Navigation.Pending", html);
+        Assert.Contains("window.sessionStorage.removeItem(\"AssetValueAnalyzer.Navigation.Pending\")", html);
+        Assert.Contains("[data-app-navigation=entering] main", css);
+        Assert.Contains("[data-app-navigation=leaving] main", css);
+        Assert.Contains("app-page-enter", css);
+        Assert.Contains("const beginAppNavigation = (navigate) =>", javascript);
+        Assert.Contains("window.location.assign(url.href)", javascript);
+        Assert.Contains("document.addEventListener(\"submit\"", javascript);
+        Assert.Contains("anchor.matches(\"[data-report-download]\")", javascript);
+    }
+
+    [Fact]
+    public async Task HomePage_RendersWizardStateFromServerBeforeJavaScriptRuns()
+    {
+        using var client = CreateClient();
+
+        var html = await client.GetStringAsync("/");
+        var javascript = await client.GetStringAsync("/js/app.js");
+
+        Assert.Contains("<html lang=\"tr\" data-report-wizard-step=\"1\">", html);
+        Assert.Contains("data-wizard-ready=\"true\"", html);
+        Assert.Contains("data-initial-step=\"1\"", html);
+        Assert.DoesNotMatch("data-step-panel=\"1\"[^>]*hidden", html);
+        Assert.Matches("data-step-panel=\"2\"[^>]*hidden", html);
+        Assert.Matches("data-step-panel=\"3\"[^>]*hidden", html);
+        Assert.DoesNotContain("AssetValueAnalyzer.ReportWizard.", html);
+        Assert.DoesNotContain("data-confirmation-summary-ready", html);
+        Assert.DoesNotContain("data-month-selection-ready", html);
+        Assert.StartsWith("(() => {", javascript);
+        Assert.DoesNotContain("DOMContentLoaded", javascript);
+        Assert.Contains("const serverRenderedStep = Number(wizard.dataset.initialStep);", javascript);
+        Assert.Contains("state.step = requestedInitialStep;", javascript);
+        Assert.Contains("const persistWizardState = () =>", javascript);
+        Assert.Contains("keepalive: true", javascript);
+        Assert.Contains("wizard.dataset.wizardReady = \"true\";", javascript);
+        Assert.DoesNotContain("wizardStorageKeys", javascript);
+        Assert.DoesNotContain("restoreMonthSelection", javascript);
+        Assert.Matches("""if \(state\.step === 3\) \{\s+updateConfirmationSummary\(\);\s+\}\s+renderStep\(\);""", javascript);
+    }
+
+    [Fact]
+    public async Task HomePage_KeepsRangeContinueButtonStableWhileRestoredRangeIsValidated()
+    {
+        using var client = CreateClient();
+
+        var javascript = await client.GetStringAsync("/js/app.js");
+
+        Assert.Contains("rangeContinueButton.disabled = isInvalid;", javascript);
+        Assert.Contains("rangeContinueButton.setAttribute(\"aria-disabled\", String(isInvalid));", javascript);
+        Assert.Contains("rangeContinueButton.setAttribute(\"aria-busy\", String(isValidating));", javascript);
+        Assert.Contains("continueButton.disabled = state.reportLocked || !(", javascript);
+        Assert.Contains("state.rangeValidationState !== \"validating\"", javascript);
     }
 
     [Fact]
@@ -122,8 +193,8 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("aria-label=\"Bitiş ayı: Seçilmedi\"", html);
         Assert.Contains("updateMonthPickerAccessibleName", javascript);
         Assert.True(
-            javascript.Split("updateMonthPickerAccessibleName(picker)").Length - 1 >= 5,
-            "Ay seçici erişilebilir adı; seçim, temizleme, ilk yükleme, geri yükleme ve sıfırlamada güncellenmelidir.");
+            javascript.Split("updateMonthPickerAccessibleName(picker)").Length - 1 >= 4,
+            "Ay seçici erişilebilir adı; seçim, temizleme, ilk yükleme ve sıfırlamada güncellenmelidir.");
         Assert.Matches(
             """if \(event\.key === "Escape"\) \{\s+hideInfoTooltips\(\);\s+closeMonthPickers\(\);""",
             javascript);
@@ -295,6 +366,28 @@ public sealed partial class WebApplicationSmokeTests(
             new("StartMonth", "2021-12"),
             new("EndMonth", "2022-01")
         ]);
+        using var dateStepContent = new FormUrlEncodedContent(
+        [
+            new("__RequestVerificationToken", token),
+            new("Step", "2"),
+            new("StartMonth", "2021-12"),
+            new("EndMonth", "2022-01")
+        ]);
+        using var dateStepResponse = await client.PostAsync(
+            "/reports/wizard-state",
+            dateStepContent);
+        var dateStepHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
+        using var confirmationStepContent = new FormUrlEncodedContent(
+        [
+            new("__RequestVerificationToken", token),
+            new("Step", "3"),
+            new("StartMonth", "2021-12"),
+            new("EndMonth", "2022-01")
+        ]);
+        using var confirmationStepResponse = await client.PostAsync(
+            "/reports/wizard-state",
+            confirmationStepContent);
+        var confirmationStepHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
 
         var createResponse = await client.PostAsync("/reports/create", createContent);
         var reportResponse = await client.GetAsync("/reports");
@@ -308,6 +401,24 @@ public sealed partial class WebApplicationSmokeTests(
 
         Assert.Equal(HttpStatusCode.OK, assetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, dateStepResponse.StatusCode);
+        Assert.Contains("<html lang=\"tr\" data-report-wizard-step=\"2\">", dateStepHtml);
+        Assert.Contains("data-initial-step=\"2\"", dateStepHtml);
+        Assert.Matches("""data-step-panel="1"[^>]*hidden""", dateStepHtml);
+        Assert.DoesNotMatch("""data-step-panel="2"[^>]*hidden""", dateStepHtml);
+        Assert.Matches("""data-step-panel="3"[^>]*hidden""", dateStepHtml);
+        Assert.Contains("aria-label=\"Başlangıç ayı: Aralık 2021\"", dateStepHtml);
+        Assert.Contains("aria-label=\"Bitiş ayı: Ocak 2022\"", dateStepHtml);
+        Assert.DoesNotMatch("""data-step-two-continue[^>]*disabled""", dateStepHtml);
+        Assert.Equal(HttpStatusCode.OK, confirmationStepResponse.StatusCode);
+        Assert.Contains("<html lang=\"tr\" data-report-wizard-step=\"3\">", confirmationStepHtml);
+        Assert.Contains("data-initial-step=\"3\"", confirmationStepHtml);
+        Assert.Matches("""data-step-panel="1"[^>]*hidden""", confirmationStepHtml);
+        Assert.Matches("""data-step-panel="2"[^>]*hidden""", confirmationStepHtml);
+        Assert.DoesNotMatch("""data-step-panel="3"[^>]*hidden""", confirmationStepHtml);
+        Assert.Contains("Aralık 2021 – Ocak 2022", confirmationStepHtml);
+        Assert.Contains("data-summary-duration>2 ay", confirmationStepHtml);
+        Assert.DoesNotContain("Rapor dönemi dosyanın ilk ve son ayına göre belirlendi.", confirmationStepHtml);
         Assert.Equal(HttpStatusCode.Redirect, createResponse.StatusCode);
         Assert.Equal("/reports", createResponse.Headers.Location?.OriginalString);
         Assert.Equal(HttpStatusCode.OK, reportResponse.StatusCode);
@@ -324,7 +435,15 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("Finansal etki raporunuz hazır.", completedHomeHtml);
         Assert.Contains("class=\"primary-button inline-flex h-11", completedHomeHtml);
         Assert.Contains("data-new-analysis-action", completedHomeHtml);
+        Assert.Matches("""data-step-one-continue[^>]*disabled""", completedHomeHtml);
+        Assert.DoesNotContain("disabled=\"False\"", completedHomeHtml);
         Assert.Equal(2, reportHtml.Split("data-report-row").Length - 1);
+        Assert.Contains("border-brand-400 bg-brand-500 text-paper-100", reportHtml);
+        Assert.Contains("aria-current=\"page\"", reportHtml);
+        Assert.Contains("data-current-page=\"1\"", reportHtml);
+        Assert.Matches("""data-page-previous\s+disabled""", reportHtml);
+        Assert.Matches("""data-page-next\s+disabled""", reportHtml);
+        Assert.Contains("window.history.replaceState", await client.GetStringAsync("/js/app.js"));
         Assert.Contains("md:sticky md:left-40 md:z-30", reportHtml);
         Assert.DoesNotContain("class=\"sticky left-40", reportHtml);
         Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);

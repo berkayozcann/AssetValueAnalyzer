@@ -7,6 +7,7 @@ public sealed record DashboardPageViewModel(
     ExchangeRateCardViewModel ExchangeRate,
     DashboardDataFileViewModel? AssetValues,
     DashboardDataFileViewModel? ProducerPriceIndices,
+    ReportWizardStateSnapshot WizardState,
     bool HasCompletedReport)
 {
     public static DashboardPageViewModel FromSnapshot(
@@ -16,6 +17,9 @@ public sealed record DashboardPageViewModel(
             exchangeRate,
             DashboardDataFileViewModel.FromSnapshot(snapshot.AssetValues),
             DashboardDataFileViewModel.FromSnapshot(snapshot.ProducerPriceIndices),
+            snapshot.CompletedReport is null
+                ? snapshot.WizardState
+                : ReportWizardStateSnapshot.Empty,
             snapshot.CompletedReport is not null);
 }
 

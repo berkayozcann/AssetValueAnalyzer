@@ -1,12 +1,42 @@
-﻿<!DOCTYPE html>
-<html lang="tr">
+﻿@{
+    var initialReportWizardStep = ViewData["ReportWizardStep"] is int reportWizardStep &&
+                                  reportWizardStep is >= 1 and <= 3
+        ? reportWizardStep
+        : 1;
+}
+<!DOCTYPE html>
+<html lang="tr" data-report-wizard-step="@initialReportWizardStep">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="only light" />
     <meta name="theme-color" content="#0d1514" />
     <title>@ViewData["Title"] - Varlık Analizi</title>
+    <script>
+        (() => {
+            let isAppNavigation = false;
+
+            try {
+                const pendingNavigation = window.sessionStorage.getItem("AssetValueAnalyzer.Navigation.Pending");
+
+                if (pendingNavigation === "true") {
+                    isAppNavigation = true;
+                    window.sessionStorage.removeItem("AssetValueAnalyzer.Navigation.Pending");
+                }
+            } catch {
+                // Tarayıcı depolaması kapalıysa sayfa geçiş animasyonu atlanır.
+            }
+
+            if (isAppNavigation) {
+                document.documentElement.dataset.appNavigation = "entering";
+            }
+        })();
+    </script>
     <script type="importmap"></script>
+    <link rel="preload" href="~/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="~/fonts/inter-latin-ext-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="~/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="~/fonts/manrope-latin-ext-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
 </head>
 <body class="antialiased selection:bg-brand-400/25 selection:text-ink-900">

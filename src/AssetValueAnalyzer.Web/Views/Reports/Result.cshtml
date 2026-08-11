@@ -15,7 +15,13 @@
     };
 
     const int pageSize = 10;
-    var pageCount = (int)Math.Ceiling(Model.Rows.Count / (double)pageSize);
+    var pageCount = Math.Max(1, (int)Math.Ceiling(Model.Rows.Count / (double)pageSize));
+    var requestedPage = int.TryParse(Context.Request.Query["page"], out var parsedPage)
+        ? parsedPage
+        : 1;
+    var currentPage = Math.Clamp(requestedPage, 1, pageCount);
+    var firstVisibleRowIndex = (currentPage - 1) * pageSize;
+    var lastVisibleRowIndex = Math.Min(firstVisibleRowIndex + pageSize, Model.Rows.Count);
 }
 
 <section class="app-shell pb-10 pt-10 lg:pt-12"
@@ -164,7 +170,9 @@
                     @for (var rowIndex = 0; rowIndex < Model.Rows.Count; rowIndex++)
                     {
                         var row = Model.Rows[rowIndex];
-                        <tr class="transition hover:bg-brand-500/5" data-report-row>
+                        <tr class="transition hover:bg-brand-500/5"
+                            data-report-row
+                            hidden="@(rowIndex < firstVisibleRowIndex || rowIndex >= lastVisibleRowIndex ? "hidden" : null)">
                             <th scope="row" class="sticky left-0 z-10 w-40 min-w-40 border-r border-line-700 bg-canvas-900 px-5 py-2.5 text-left font-medium text-ink-900">@row.Month</th>
                             <td class="w-48 min-w-48 border-r border-line-700 bg-surface-900 px-5 py-2.5 text-right font-medium text-ink-900 md:sticky md:left-40 md:z-10">@row.AssetValue</td>
                             <td class="@ValueTone(row.MonthlyAssetIncreaseRate) border-r border-line-700 px-5 py-2.5 text-right">@row.MonthlyAssetIncreaseRate</td>
@@ -186,23 +194,28 @@
         </div>
 
         <footer class="flex flex-col gap-3 border-t border-line-700 px-5 py-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between"
-                data-report-pagination data-page-size="@pageSize">
-            <p data-pagination-summary>1–@Math.Min(pageSize, Model.Rows.Count) / @Model.Rows.Count ay</p>
+                data-report-pagination
+                data-page-size="@pageSize"
+                data-current-page="@currentPage">
+            <p data-pagination-summary>@(firstVisibleRowIndex + 1)–@lastVisibleRowIndex / @Model.Rows.Count ay</p>
             <nav class="flex items-center gap-2" aria-label="Aylık finansal detay sayfaları">
                 <button type="button"
                         class="secondary-button rounded-lg px-3 py-2 disabled:cursor-not-allowed disabled:opacity-35"
                         aria-label="Önceki sayfa"
-                        data-page-previous>←</button>
+                        data-page-previous
+                        disabled="@(currentPage == 1 ? "disabled" : null)">←</button>
                 @for (var pageNumber = 1; pageNumber <= pageCount; pageNumber++)
                 {
                     <button type="button"
-                            class="secondary-button min-w-10 rounded-lg px-3 py-2"
+                            class="secondary-button min-w-10 rounded-lg px-3 py-2 @(pageNumber == currentPage ? "border-brand-400 bg-brand-500 text-paper-100" : string.Empty)"
+                            aria-current="@(pageNumber == currentPage ? "page" : "false")"
                             data-page-number="@pageNumber">@pageNumber</button>
                 }
                 <button type="button"
                         class="secondary-button rounded-lg px-3 py-2 disabled:cursor-not-allowed disabled:opacity-35"
                         aria-label="Sonraki sayfa"
-                        data-page-next>→</button>
+                        data-page-next
+                        disabled="@(currentPage == pageCount ? "disabled" : null)">→</button>
             </nav>
         </footer>
     </section>

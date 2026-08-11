@@ -89,6 +89,49 @@ public sealed class ReportsController(
         });
     }
 
+    [HttpPost("wizard-state")]
+    [ValidateAntiForgeryToken]
+    public IActionResult SaveWizardState(ReportWizardStateForm form)
+    {
+        var snapshot = reportWorkspaceSession.Get();
+
+        if (snapshot.AssetValues is null ||
+            snapshot.ProducerPriceIndices is null ||
+            snapshot.CompletedReport is not null)
+        {
+            reportWorkspaceSession.SaveWizardState(ReportWizardStateSnapshot.Empty);
+            return Ok(new { step = 1 });
+        }
+
+        if (!TryParseMonth(form.StartMonth, out var startMonth) ||
+            !TryParseMonth(form.EndMonth, out var endMonth))
+        {
+            return BadRequest();
+        }
+
+        var step = Math.Clamp(form.Step, 1, 3);
+
+        if (step == 3)
+        {
+            var validation = rangeValidator.Validate(CreateRequest(
+                snapshot,
+                startMonth,
+                endMonth));
+
+            if (!validation.IsValid)
+            {
+                step = 2;
+            }
+        }
+
+        reportWorkspaceSession.SaveWizardState(new ReportWizardStateSnapshot(
+            step,
+            startMonth,
+            endMonth));
+
+        return Ok(new { step });
+    }
+
     [HttpPost("create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(

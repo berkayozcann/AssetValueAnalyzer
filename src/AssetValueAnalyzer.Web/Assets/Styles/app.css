@@ -1,9 +1,21 @@
 @import "tailwindcss" source("../../");
 
+@keyframes app-page-enter {
+  from {
+    opacity: 0.88;
+    transform: translateY(0.4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @font-face {
   font-family: "Inter Variable";
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
   font-weight: 100 900;
   src: url("../fonts/inter-latin-ext-wght-normal.woff2") format("woff2-variations");
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
@@ -12,7 +24,7 @@
 @font-face {
   font-family: "Inter Variable";
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
   font-weight: 100 900;
   src: url("../fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
   unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
@@ -21,7 +33,7 @@
 @font-face {
   font-family: "Manrope Variable";
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
   font-weight: 200 800;
   src: url("../fonts/manrope-latin-ext-wght-normal.woff2") format("woff2-variations");
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
@@ -30,7 +42,7 @@
 @font-face {
   font-family: "Manrope Variable";
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
   font-weight: 200 800;
   src: url("../fonts/manrope-latin-wght-normal.woff2") format("woff2-variations");
   unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
@@ -94,6 +106,17 @@
 }
 
 @layer base {
+  html[data-app-navigation="entering"] main {
+    animation: app-page-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  html[data-app-navigation="leaving"] main {
+    opacity: 0.88;
+    transform: translateY(-0.25rem);
+    transition: opacity 190ms ease, transform 190ms ease;
+    pointer-events: none;
+  }
+
   :root {
     color-scheme: only light;
     font-family: var(--font-sans);
@@ -213,6 +236,86 @@
       display: flex;
       flex-direction: column;
       min-height: 25rem;
+    }
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-panel] {
+    display: none !important;
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-panel="1"] {
+    display: block !important;
+  }
+
+  html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="1"],
+  html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="1"] {
+    display: none !important;
+  }
+
+  html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="2"],
+  html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="3"] {
+    display: block !important;
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-marker] {
+    --wizard-step-border: var(--color-step-border);
+    --wizard-step-background: var(--color-step-surface);
+    --wizard-step-color: var(--color-step-ink);
+    --wizard-step-label: var(--color-step-muted);
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-marker="1"] {
+    --wizard-step-border: var(--color-accent-300);
+    --wizard-step-background: var(--color-accent-300);
+    --wizard-step-color: var(--color-paper-100);
+    --wizard-step-label: var(--color-ink-900);
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-circle] {
+    border-color: var(--wizard-step-border) !important;
+    color: var(--wizard-step-color) !important;
+    background: var(--wizard-step-background) !important;
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-label] {
+    color: var(--wizard-step-label) !important;
+  }
+
+  [data-report-wizard][data-wizard-ready="false"] [data-step-connector] {
+    background: var(--color-line-600) !important;
+  }
+
+  html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-marker="1"],
+  html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] :is([data-step-marker="1"], [data-step-marker="2"]) {
+    --wizard-step-border: var(--color-accent-300);
+    --wizard-step-background: var(--color-icon-surface);
+    --wizard-step-color: var(--color-accent-300);
+    --wizard-step-label: var(--color-ink-900);
+  }
+
+  html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-marker="2"],
+  html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-marker="3"] {
+    --wizard-step-border: var(--color-accent-300);
+    --wizard-step-background: var(--color-accent-300);
+    --wizard-step-color: var(--color-paper-100);
+    --wizard-step-label: var(--color-ink-900);
+  }
+
+  html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-connector="1"],
+  html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-connector] {
+    background: var(--color-accent-300) !important;
+  }
+
+  @media (min-width: 640px) {
+    [data-report-wizard][data-wizard-ready="false"] [data-step-panel="1"],
+    html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="2"],
+    html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="3"] {
+      display: flex !important;
+    }
+
+    html[data-report-wizard-step="2"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="1"],
+    html[data-report-wizard-step="3"] [data-report-wizard][data-wizard-ready="false"][data-asset-ready="true"][data-index-ready="true"] [data-step-panel="1"] {
+      display: none !important;
     }
   }
 

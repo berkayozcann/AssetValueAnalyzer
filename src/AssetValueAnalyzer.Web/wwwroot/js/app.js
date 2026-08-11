@@ -1,4 +1,115 @@
-document.addEventListener("DOMContentLoaded", () => {
+(() => {
+  const navigationMarkerKey = "AssetValueAnalyzer.Navigation.Pending";
+  let appNavigationInProgress = false;
+
+  const clearPendingNavigation = () => {
+    try {
+      window.sessionStorage.removeItem(navigationMarkerKey);
+    } catch {
+      // Session storage kapalıysa geçiş işareti tutulmadan devam edilir.
+    }
+  };
+
+  const beginAppNavigation = (navigate) => {
+    if (appNavigationInProgress) {
+      return;
+    }
+
+    appNavigationInProgress = true;
+
+    try {
+      window.sessionStorage.setItem(navigationMarkerKey, "true");
+    } catch {
+      // Session storage kapalıysa yalnız çıkış geçişi uygulanır.
+    }
+
+    document.documentElement.dataset.appNavigation = "leaving";
+
+    window.setTimeout(navigate, 190);
+    window.setTimeout(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      clearPendingNavigation();
+      delete document.documentElement.dataset.appNavigation;
+      appNavigationInProgress = false;
+    }, 1500);
+  };
+
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted && document.documentElement.dataset.appNavigation !== "leaving") {
+      return;
+    }
+
+    clearPendingNavigation();
+    delete document.documentElement.dataset.appNavigation;
+    appNavigationInProgress = false;
+  });
+
+  document.addEventListener("animationend", (event) => {
+    if (event.animationName === "app-page-enter") {
+      delete document.documentElement.dataset.appNavigation;
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    const anchor = target?.closest("a[href]");
+
+    if (
+      !anchor ||
+      anchor.target ||
+      anchor.hasAttribute("download") ||
+      anchor.matches("[data-report-download]")
+    ) {
+      return;
+    }
+
+    const url = new URL(anchor.href, window.location.href);
+    const isSameDocumentFragment =
+      url.pathname === window.location.pathname &&
+      url.search === window.location.search &&
+      Boolean(url.hash);
+
+    if (
+      url.origin !== window.location.origin ||
+      !["http:", "https:"].includes(url.protocol) ||
+      isSameDocumentFragment
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    beginAppNavigation(() => window.location.assign(url.href));
+  });
+
+  document.addEventListener("submit", (event) => {
+    if (event.defaultPrevented || !(event.target instanceof HTMLFormElement)) {
+      return;
+    }
+
+    const form = event.target;
+
+    if (form.target) {
+      return;
+    }
+
+    event.preventDefault();
+    beginAppNavigation(() => form.submit());
+  });
+
   const connectExchangeRateUpdates = () => {
     if (!document.querySelector("[data-exchange-rate-card]") || !window.signalR) {
       return;
@@ -94,7 +205,6 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         startPromise = connection.start();
         await startPromise;
-        void refreshExchangeRateCard();
       } catch (error) {
         if (!isPageUnloading) {
           console.warn("Kur güncelleme bağlantısı kurulamadı; tekrar denenecek.", error);
@@ -154,24 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   connectExchangeRateUpdates();
-
-  const wizardStorageKeys = {
-    step: "AssetValueAnalyzer.ReportWizard.Step",
-    startMonth: "AssetValueAnalyzer.ReportWizard.StartMonth",
-    endMonth: "AssetValueAnalyzer.ReportWizard.EndMonth",
-  };
-
-  const clearWizardStorage = () => {
-    try {
-      Object.values(wizardStorageKeys).forEach((key) => window.sessionStorage.removeItem(key));
-    } catch {
-      // Session storage kullanılamıyorsa temizlenecek kalıcı UI durumu yoktur.
-    }
-  };
-
-  if (document.querySelector('[data-reset-report-wizard="true"]')) {
-    clearWizardStorage();
-  }
 
   const infoTooltips = [...document.querySelectorAll("[data-info-tooltip]")].map((container) => {
     const trigger = container.querySelector("button");
@@ -590,7 +682,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       apply.disabled = true;
-      form.submit();
+      beginAppNavigation(() => form.submit());
     });
 
     document.addEventListener("click", () => setDateRangeOpen(false));
@@ -616,9 +708,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const previous = reportPagination.querySelector("[data-page-previous]");
     const next = reportPagination.querySelector("[data-page-next]");
     const pageButtons = [...reportPagination.querySelectorAll("[data-page-number]")];
-    let currentPage = 1;
+    let currentPage = Math.min(
+      pageCount,
+      Math.max(1, Number(reportPagination.dataset.currentPage ?? 1)),
+    );
 
-    const renderPage = () => {
+    const renderPage = (updateUrl = false) => {
       const firstIndex = (currentPage - 1) * pageSize;
       const lastIndex = Math.min(firstIndex + pageSize, rows.length);
 
@@ -637,22 +732,34 @@ document.addEventListener("DOMContentLoaded", () => {
         button.classList.toggle("text-paper-100", isCurrent);
         button.classList.toggle("border-brand-400", isCurrent);
       });
+
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+
+        if (currentPage === 1) {
+          url.searchParams.delete("page");
+        } else {
+          url.searchParams.set("page", String(currentPage));
+        }
+
+        window.history.replaceState(window.history.state, "", url);
+      }
     };
 
     previous.addEventListener("click", () => {
       currentPage = Math.max(1, currentPage - 1);
-      renderPage();
+      renderPage(true);
     });
 
     next.addEventListener("click", () => {
       currentPage = Math.min(pageCount, currentPage + 1);
-      renderPage();
+      renderPage(true);
     });
 
     pageButtons.forEach((button) => {
       button.addEventListener("click", () => {
         currentPage = Number(button.dataset.pageNumber);
-        renderPage();
+        renderPage(true);
       });
     });
 
@@ -684,22 +791,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fileUploadInProgress: false,
   };
 
-  const readWizardStorage = (key) => {
-    try {
-      return window.sessionStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  };
-
-  const writeWizardStorage = (key, value) => {
-    try {
-      window.sessionStorage.setItem(key, value);
-    } catch {
-      // Tarayıcı depolaması kapalıysa akış yalnız mevcut sayfa ömründe çalışır.
-    }
-  };
-
   const panels = [...wizard.querySelectorAll("[data-step-panel]")];
   const markers = [...wizard.querySelectorAll("[data-step-marker]")];
   const connectors = [...wizard.querySelectorAll("[data-step-connector]")];
@@ -714,41 +805,38 @@ document.addEventListener("DOMContentLoaded", () => {
   const hasValidatedFiles =
     state.assetValidationState === "valid" &&
     state.indexValidationState === "valid";
-  const storedStep = Number(readWizardStorage(wizardStorageKeys.step));
-  const requestedInitialStep = hasValidatedFiles && [2, 3].includes(storedStep)
-    ? storedStep
+  const serverRenderedStep = Number(wizard.dataset.initialStep);
+  const requestedInitialStep = hasValidatedFiles && [2, 3].includes(serverRenderedStep)
+    ? serverRenderedStep
     : 1;
 
-  if (!hasValidatedFiles) {
-    clearWizardStorage();
-  }
+  document.documentElement.dataset.reportWizardStep = String(requestedInitialStep);
+  state.step = requestedInitialStep;
 
-  const restoreMonthSelection = (input, storageKey) => {
-    const storedValue = readWizardStorage(storageKey);
-
-    if (!storedValue ||
-        !state.assetFirstMonth ||
-        !state.assetLastMonth ||
-        storedValue < state.assetFirstMonth ||
-        storedValue > state.assetLastMonth) {
+  const persistWizardState = () => {
+    if (!wizard.dataset.wizardStateUrl) {
       return;
     }
 
-    const picker = input.closest("[data-month-picker]");
-    const display = picker?.querySelector("[data-month-picker-display]");
-    input.value = storedValue;
+    const body = new URLSearchParams({
+      Step: String(state.step),
+      StartMonth: startMonthInput.value,
+      EndMonth: endMonthInput.value,
+    });
 
-    if (display) {
-      display.textContent = formatMonth(storedValue);
-      display.classList.add("text-ink-900");
-      display.classList.remove("text-slate-400");
-      updateMonthPickerAccessibleName(picker);
+    if (antiforgeryToken) {
+      body.set("__RequestVerificationToken", antiforgeryToken);
     }
-  };
 
-  restoreMonthSelection(startMonthInput, wizardStorageKeys.startMonth);
-  restoreMonthSelection(endMonthInput, wizardStorageKeys.endMonth);
-  state.step = requestedInitialStep === 3 ? 2 : requestedInitialStep;
+    void fetch(wizard.dataset.wizardStateUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // Görsel akış ağ hatasında kesilmez; mevcut sunucu durumu korunur.
+    });
+  };
 
   const getLocalRangeError = () => {
     const startMonth = startMonthInput.value || state.assetFirstMonth;
@@ -771,7 +859,12 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const updateRangeContinueState = () => {
-    rangeContinueButton.disabled = state.rangeValidationState !== "valid";
+    const isInvalid = state.rangeValidationState === "invalid";
+    const isValidating = state.rangeValidationState === "validating";
+
+    rangeContinueButton.disabled = isInvalid;
+    rangeContinueButton.setAttribute("aria-disabled", String(isInvalid));
+    rangeContinueButton.setAttribute("aria-busy", String(isValidating));
   };
 
   const validateWizardRange = async () => {
@@ -865,9 +958,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state.rangeValidationRequestId++;
     state.rangeValidationState = "idle";
     state.includedMonthCount = null;
-    writeWizardStorage(wizardStorageKeys.startMonth, "");
-    writeWizardStorage(wizardStorageKeys.endMonth, "");
-    writeWizardStorage(wizardStorageKeys.step, "1");
+    state.step = 1;
+    persistWizardState();
     setRangeError("");
     updateRangeContinueState();
   };
@@ -877,8 +969,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reportCreationError.hidden = true;
     }
 
-    writeWizardStorage(wizardStorageKeys.startMonth, startMonthInput.value);
-    writeWizardStorage(wizardStorageKeys.endMonth, endMonthInput.value);
+    persistWizardState();
     void validateWizardRange();
   };
 
@@ -886,7 +977,7 @@ document.addEventListener("DOMContentLoaded", () => {
   endMonthInput.addEventListener("change", handleRangeChange);
 
   const updateContinueState = () => {
-    continueButton.disabled = !(
+    continueButton.disabled = state.reportLocked || !(
       state.assetValidationState === "valid" &&
       state.indexValidationState === "valid"
     );
@@ -1172,6 +1263,9 @@ document.addEventListener("DOMContentLoaded", () => {
       connector.classList.toggle("bg-accent-300", isComplete);
       connector.classList.toggle("bg-line-600", !isComplete);
     });
+
+    document.documentElement.dataset.reportWizardStep = String(state.step);
+    wizard.dataset.wizardReady = "true";
   };
 
   const updateConfirmationSummary = () => {
@@ -1198,6 +1292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     automaticNoteRow.classList.toggle("flex", Boolean(automaticNote));
     wizard.querySelector("[data-summary-duration]").textContent =
       `${state.includedMonthCount ?? countMonthsInclusive(effectiveStart, effectiveEnd)} ay`;
+    wizard.querySelector("[data-confirmation-summary]").dataset.confirmationSummaryReady = "true";
   };
 
   const updateFileSummaries = () => {
@@ -1310,12 +1405,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (nextStep === 3 && state.rangeValidationState !== "valid") {
-        void validateWizardRange();
+        if (state.rangeValidationState !== "validating") {
+          void validateWizardRange();
+        }
+
         return;
       }
 
       state.step = nextStep;
-      writeWizardStorage(wizardStorageKeys.step, String(nextStep));
+      persistWizardState();
       updateFileSummaries();
 
       if (nextStep === 2) {
@@ -1335,15 +1433,27 @@ document.addEventListener("DOMContentLoaded", () => {
   updateFileSummaries();
   updateContinueState();
   updateRangeContinueState();
+
+  if (state.step === 3) {
+    updateConfirmationSummary();
+  }
+
   renderStep();
 
   if (state.step === 2) {
+    void validateWizardRange();
+  }
+
+  if (state.step === 3) {
     void validateWizardRange().then((isValid) => {
-      if (isValid && requestedInitialStep === 3) {
-        state.step = 3;
+      if (isValid) {
         updateConfirmationSummary();
-        renderStep();
+        return;
       }
+
+      state.step = 2;
+      persistWizardState();
+      renderStep();
     });
   }
 
@@ -1352,4 +1462,4 @@ document.addEventListener("DOMContentLoaded", () => {
       control.disabled = true;
     });
   }
-});
+})();

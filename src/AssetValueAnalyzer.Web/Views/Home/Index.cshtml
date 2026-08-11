@@ -10,6 +10,57 @@
     var indexFile = Model.ProducerPriceIndices;
     var assetFirstMonth = assetFile?.FirstMonth?.ToString("yyyy-MM");
     var assetLastMonth = assetFile?.LastMonth?.ToString("yyyy-MM");
+    var hasValidatedFiles = assetFile is not null && indexFile is not null;
+    var initialWizardStep = hasValidatedFiles &&
+                            !Model.HasCompletedReport &&
+                            Model.WizardState.Step is 2 or 3
+        ? Model.WizardState.Step
+        : 1;
+    DateOnly? selectedStartMonth = null;
+    DateOnly? selectedEndMonth = null;
+
+    if (Model.WizardState.StartMonth is DateOnly storedStartMonth &&
+        assetFile?.FirstMonth is DateOnly minimumStartMonth &&
+        assetFile.LastMonth is DateOnly maximumStartMonth &&
+        storedStartMonth >= minimumStartMonth &&
+        storedStartMonth <= maximumStartMonth)
+    {
+        selectedStartMonth = storedStartMonth;
+    }
+
+    if (Model.WizardState.EndMonth is DateOnly storedEndMonth &&
+        assetFile?.FirstMonth is DateOnly minimumEndMonth &&
+        assetFile.LastMonth is DateOnly maximumEndMonth &&
+        storedEndMonth >= minimumEndMonth &&
+        storedEndMonth <= maximumEndMonth)
+    {
+        selectedEndMonth = storedEndMonth;
+    }
+
+    var selectedStartMonthValue = selectedStartMonth?.ToString("yyyy-MM") ?? string.Empty;
+    var selectedEndMonthValue = selectedEndMonth?.ToString("yyyy-MM") ?? string.Empty;
+    var selectedStartMonthDisplay = selectedStartMonth is DateOnly selectedStart
+        ? MonthDisplayFormatter.Format(selectedStart)
+        : "Seçilmedi";
+    var selectedEndMonthDisplay = selectedEndMonth is DateOnly selectedEnd
+        ? MonthDisplayFormatter.Format(selectedEnd)
+        : "Seçilmedi";
+    var effectiveStartMonth = selectedStartMonth ?? assetFile?.FirstMonth;
+    var effectiveEndMonth = selectedEndMonth ?? assetFile?.LastMonth;
+    var defaultSummaryPeriod = MonthDisplayFormatter.FormatRange(effectiveStartMonth, effectiveEndMonth) ?? "—";
+    int? defaultSummaryDuration = effectiveStartMonth is DateOnly firstMonth &&
+                                  effectiveEndMonth is DateOnly lastMonth
+        ? ((lastMonth.Year - firstMonth.Year) * 12) + lastMonth.Month - firstMonth.Month + 1
+        : null;
+    var automaticRangeNote = selectedStartMonth is null && selectedEndMonth is null
+        ? "Rapor dönemi dosyanın ilk ve son ayına göre belirlendi."
+        : selectedStartMonth is null
+            ? "Başlangıç ayı dosyadan otomatik belirlendi."
+            : selectedEndMonth is null
+                ? "Bitiş ayı dosyadan otomatik belirlendi."
+                : string.Empty;
+
+    ViewData["ReportWizardStep"] = initialWizardStep;
 }
 
 <section class="app-shell pb-12 pt-10 lg:pt-12">
@@ -46,8 +97,11 @@
 
     <section class="glass-panel report-builder-panel mt-9 overflow-hidden rounded-[2rem]"
              data-report-wizard
+             data-wizard-ready="true"
+             data-initial-step="@initialWizardStep"
              data-report-locked="@(Model.HasCompletedReport ? "true" : "false")"
              data-range-validation-url="@Url.Action("ValidateRange", "Reports")"
+             data-wizard-state-url="@Url.Action("SaveWizardState", "Reports")"
              data-asset-ready="@(assetFile is not null ? "true" : "false")"
              data-asset-file-name="@(assetFile?.FileName ?? string.Empty)"
              data-asset-first-month="@(assetFirstMonth ?? string.Empty)"
@@ -74,28 +128,28 @@
 
             <ol class="mt-10 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-3" aria-label="Finansal etki analizi oluşturma adımları">
                 <li class="flex items-center gap-3" data-step-marker="1">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-full border border-accent-300 bg-accent-300 font-semibold text-paper-100" data-step-circle>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-full border font-semibold @(initialWizardStep == 1 ? "border-accent-300 bg-accent-300 text-paper-100" : "border-accent-300 bg-icon-surface text-accent-300")" data-step-circle>
                         <span data-step-number>1</span>
                     </span>
                     <span class="hidden font-medium text-ink-900 sm:block" data-step-label>Veri Dosyaları</span>
                 </li>
-                <li class="h-px bg-line-600" data-step-connector="1" aria-hidden="true"></li>
+                <li class="h-px @(initialWizardStep > 1 ? "bg-accent-300" : "bg-line-600")" data-step-connector="1" aria-hidden="true"></li>
                 <li class="flex items-center gap-3" data-step-marker="2">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-full border border-step-border bg-step-surface font-semibold text-step-ink" data-step-circle>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-full border font-semibold @(initialWizardStep == 2 ? "border-accent-300 bg-accent-300 text-paper-100" : initialWizardStep > 2 ? "border-accent-300 bg-icon-surface text-accent-300" : "border-step-border bg-step-surface text-step-ink")" data-step-circle>
                         <span data-step-number>2</span>
                     </span>
-                    <span class="hidden font-medium text-step-muted sm:block" data-step-label>Rapor Dönemi</span>
+                    <span class="hidden font-medium @(initialWizardStep >= 2 ? "text-ink-900" : "text-step-muted") sm:block" data-step-label>Rapor Dönemi</span>
                 </li>
-                <li class="h-px bg-line-600" data-step-connector="2" aria-hidden="true"></li>
+                <li class="h-px @(initialWizardStep > 2 ? "bg-accent-300" : "bg-line-600")" data-step-connector="2" aria-hidden="true"></li>
                 <li class="flex items-center gap-3" data-step-marker="3">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-full border border-step-border bg-step-surface font-semibold text-step-ink" data-step-circle>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-full border font-semibold @(initialWizardStep == 3 ? "border-accent-300 bg-accent-300 text-paper-100" : "border-step-border bg-step-surface text-step-ink")" data-step-circle>
                         <span data-step-number>3</span>
                     </span>
-                    <span class="hidden font-medium text-step-muted sm:block" data-step-label>Kontrol ve Onay</span>
+                    <span class="hidden font-medium @(initialWizardStep >= 3 ? "text-ink-900" : "text-step-muted") sm:block" data-step-label>Kontrol ve Onay</span>
                 </li>
             </ol>
 
-            <div class="wizard-stage mt-8" data-step-panel="1">
+            <div class="wizard-stage mt-8" data-step-panel="1" hidden="@(initialWizardStep != 1 ? "hidden" : null)">
                 <div class="space-y-4">
                     <article class="field-card rounded-2xl px-5 py-5 sm:px-7" data-file-row="assetFile">
                         <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -213,11 +267,17 @@
                         </svg>
                         Aylık Varlık Verisi ve Yİ-ÜFE Endeks Verisi dosyaları doğrulandığında rapor dönemini seçebilirsiniz.
                     </p>
-                    <button type="button" class="primary-button wizard-action-button" data-step-one-continue data-go-step="2" disabled="@(assetFile is null || indexFile is null)">Rapor Dönemine Geç</button>
+                    <button type="button"
+                            class="primary-button wizard-action-button"
+                            data-step-one-continue
+                            data-go-step="2"
+                            disabled="@(assetFile is null || indexFile is null || Model.HasCompletedReport ? "disabled" : null)">
+                        Rapor Dönemine Geç
+                    </button>
                 </div>
             </div>
 
-            <div class="wizard-stage mt-8" data-step-panel="2" hidden>
+            <div class="wizard-stage mt-8" data-step-panel="2" hidden="@(initialWizardStep != 2 ? "hidden" : null)">
                 <div class="flex flex-col gap-4 rounded-2xl border border-line-700 bg-surface-800 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
                     <p class="truncate text-sm text-slate-300"><span class="mr-2 text-positive-400">✓</span><strong class="text-ink-900">Aylık Varlık Verisi:</strong> <span data-summary-asset>@(assetFile?.FileName ?? "Seçilen dosya")</span></p>
                     <span class="hidden h-8 w-px bg-line-700 lg:block" aria-hidden="true"></span>
@@ -233,22 +293,22 @@
                                 "Rapor Dönemi",
                                 "Ay seçmezseniz Aylık Varlık Verisi dosyasındaki ilk ve son ay kullanılır.\n\nYalnızca bir sınır seçerseniz diğer sınır dosyadan otomatik tamamlanır.\n\nSeçilen rapor döneminin son ayı rapor ayıdır. Hesaplama için en az iki farklı varlık ayı ve her varlık ayı için Yİ-ÜFE Endeks Verisi gerekir. Yalnızca tamamlanmış aylar rapora dahil edilebilir."))
                     </h3>
-                    <div class="mt-5 grid gap-5 md:grid-cols-2">
+                    <div class="mt-5 grid gap-5 md:grid-cols-2" data-month-selection>
                         <div class="relative" data-month-picker data-month-picker-label="Başlangıç ayı" data-min-month="@(assetFirstMonth ?? "2021-12")" data-max-month="@(assetLastMonth ?? "2023-08")" data-completed-months-only="true">
                             <span class="mb-2 block text-sm text-slate-400">Başlangıç ayı</span>
                             <button type="button"
                                     class="field-card flex w-full items-center justify-between rounded-xl px-5 py-4 text-left"
                                     aria-expanded="false"
                                     aria-controls="start-month-picker"
-                                    aria-label="Başlangıç ayı: Seçilmedi"
+                                    aria-label="Başlangıç ayı: @selectedStartMonthDisplay"
                                     data-month-picker-toggle>
-                                <span class="text-lg font-medium text-slate-400" data-month-picker-display>Seçilmedi</span>
+                                <span class="text-lg font-medium @(selectedStartMonth is null ? "text-slate-400" : "text-ink-900")" data-month-picker-display>@selectedStartMonthDisplay</span>
                                 <svg class="h-6 w-6 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                                     <path d="M8 3v4M16 3v4M3 10h18"></path>
                                 </svg>
                             </button>
-                            <input id="startMonth" name="StartMonth" type="hidden" value="" data-month-picker-input />
+                            <input id="startMonth" name="StartMonth" type="hidden" value="@selectedStartMonthValue" data-month-picker-input />
                             <section id="start-month-picker"
                                      class="month-picker-panel fixed z-50 w-72 rounded-xl p-4"
                                      data-month-picker-panel
@@ -268,15 +328,15 @@
                                     class="field-card flex w-full items-center justify-between rounded-xl px-5 py-4 text-left"
                                     aria-expanded="false"
                                     aria-controls="end-month-picker"
-                                    aria-label="Bitiş ayı: Seçilmedi"
+                                    aria-label="Bitiş ayı: @selectedEndMonthDisplay"
                                     data-month-picker-toggle>
-                                <span class="text-lg font-medium text-slate-400" data-month-picker-display>Seçilmedi</span>
+                                <span class="text-lg font-medium @(selectedEndMonth is null ? "text-slate-400" : "text-ink-900")" data-month-picker-display>@selectedEndMonthDisplay</span>
                                 <svg class="h-6 w-6 text-slate-300" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                                     <path d="M8 3v4M16 3v4M3 10h18"></path>
                                 </svg>
                             </button>
-                            <input id="endMonth" name="EndMonth" type="hidden" value="" data-month-picker-input />
+                            <input id="endMonth" name="EndMonth" type="hidden" value="@selectedEndMonthValue" data-month-picker-input />
                             <section id="end-month-picker"
                                      class="month-picker-panel fixed z-50 w-72 rounded-xl p-4"
                                      data-month-picker-panel
@@ -300,18 +360,18 @@
                 </div>
             </div>
 
-            <div class="wizard-stage mt-8" data-step-panel="3" hidden>
-                <div class="grid auto-rows-fr gap-5 lg:grid-cols-2">
+            <div class="wizard-stage mt-8" data-step-panel="3" hidden="@(initialWizardStep != 3 ? "hidden" : null)">
+                <div class="grid auto-rows-fr gap-5 lg:grid-cols-2" data-confirmation-summary>
                     <section class="surface-card h-full min-h-48 rounded-2xl px-6 py-6">
                         <h3 class="text-xl font-semibold text-ink-900">Veri Dosyaları</h3>
                         <dl class="mt-5 space-y-4 text-sm">
                             <div class="flex items-center justify-between gap-4 border-b border-line-700 pb-4">
                                 <dt class="font-medium text-ink-900"><span class="mr-2 text-positive-400">✓</span>Aylık Varlık Verisi</dt>
-                                <dd class="max-w-64 truncate text-slate-300" data-summary-asset>—</dd>
+                                <dd class="max-w-64 truncate text-slate-300" data-summary-asset>@(assetFile?.FileName ?? "—")</dd>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <dt class="font-medium text-ink-900"><span class="mr-2 text-positive-400">✓</span>Yİ-ÜFE Endeks Verisi</dt>
-                                <dd class="max-w-64 truncate text-slate-300" data-summary-index>—</dd>
+                                <dd class="max-w-64 truncate text-slate-300" data-summary-index>@(indexFile?.FileName ?? "—")</dd>
                             </div>
                         </dl>
                     </section>
@@ -320,14 +380,14 @@
                         <dl class="mt-5 space-y-4 text-sm">
                             <div class="flex items-center justify-between gap-4 border-b border-line-700 pb-4">
                                 <dt class="text-slate-400">Rapor Dönemi</dt>
-                                <dd class="text-right font-medium text-ink-900" data-summary-period>Dosyadaki ilk ve son ay</dd>
+                                <dd class="text-right font-medium text-ink-900" data-summary-period>@defaultSummaryPeriod</dd>
                             </div>
-                            <div class="hidden justify-end" data-summary-automatic-note-row>
-                                <p class="text-right text-xs text-slate-400" data-summary-automatic-note></p>
+                            <div class="@(string.IsNullOrEmpty(automaticRangeNote) ? "hidden" : "flex") justify-end" data-summary-automatic-note-row>
+                                <p class="text-right text-xs text-slate-400" data-summary-automatic-note>@automaticRangeNote</p>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <dt class="text-slate-400">Dahil Edilen Ay Sayısı</dt>
-                                <dd class="text-right font-medium text-ink-900" data-summary-duration>Dosyaya göre otomatik</dd>
+                                <dd class="text-right font-medium text-ink-900" data-summary-duration>@(defaultSummaryDuration is null ? "—" : $"{defaultSummaryDuration} ay")</dd>
                             </div>
                         </dl>
                     </section>
