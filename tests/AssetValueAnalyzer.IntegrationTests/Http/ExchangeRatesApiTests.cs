@@ -81,9 +81,12 @@ public sealed class ExchangeRatesApiTests(
         using var client = CreateClient();
 
         var response = await client.GetAsync("/api/exchange-rates/latest");
-        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var json = JsonDocument.Parse(responseBody);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\n  {", responseBody, StringComparison.Ordinal);
+        Assert.Contains("\n    \"baseCurrencyCode\"", responseBody, StringComparison.Ordinal);
         Assert.Equal(2, json.RootElement.GetArrayLength());
         Assert.All(json.RootElement.EnumerateArray(), rate =>
         {

@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.WriteIndented = true);
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseReadinessHealthCheck>(
