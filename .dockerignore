@@ -1,0 +1,8 @@
+**
+!Dockerfile
+!src/
+!src/**
+
+**/bin/
+**/obj/
+**/node_modules/

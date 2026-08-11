@@ -24,20 +24,23 @@ public sealed class ExchangeRateCardViewModelFactoryTests
     public void Create_WithFirstRate_KeepsValueAvailableWithoutInventingTrend()
     {
         var retrievedAtUtc = new DateTimeOffset(2026, 8, 10, 0, 30, 0, TimeSpan.Zero);
+        var istanbulTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
         var viewModel = ExchangeRateCardViewModelFactory.Create(
             new CurrentUsdExchangeRate(
                 45.8708m,
                 new DateOnly(2026, 8, 10),
                 retrievedAtUtc,
                 PreviousValue: null),
-            CreateTimeProvider(new DateOnly(2026, 8, 10)));
+            CreateTimeProvider(
+                new DateOnly(2026, 8, 10),
+                istanbulTimeZone));
 
         Assert.Equal("45,8708", viewModel.FormattedRate);
         Assert.Equal(
             "Karşılaştırma için önceki kur verisi bulunmuyor.",
             viewModel.TrendText);
         Assert.Equal(
-            $"Son kontrol · {retrievedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}",
+            "Son kontrol · 10.08.2026 03:30",
             viewModel.LastSyncText);
         Assert.Equal(ExchangeRateTrend.Unavailable, viewModel.Trend);
         Assert.True(viewModel.HasRate);
@@ -85,13 +88,18 @@ public sealed class ExchangeRateCardViewModelFactoryTests
         Assert.Equal(ExchangeRateTrend.Increased, viewModel.Trend);
     }
 
-    private static TimeProvider CreateTimeProvider(DateOnly date) =>
+    private static TimeProvider CreateTimeProvider(
+        DateOnly date,
+        TimeZoneInfo? localTimeZone = null) =>
         new FixedTimeProvider(
-            new DateTimeOffset(date.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero));
+            new DateTimeOffset(date.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero),
+            localTimeZone ?? TimeZoneInfo.Utc);
 
-    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    private sealed class FixedTimeProvider(
+        DateTimeOffset utcNow,
+        TimeZoneInfo localTimeZone) : TimeProvider
     {
-        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+        public override TimeZoneInfo LocalTimeZone => localTimeZone;
 
         public override DateTimeOffset GetUtcNow() => utcNow;
     }

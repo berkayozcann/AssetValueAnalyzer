@@ -65,6 +65,18 @@ public sealed partial class WebApplicationSmokeTests(
     }
 
     [Fact]
+    public async Task HealthEndpoint_WhenStartupCompleted_ReturnsHealthy()
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync("/health");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
     public async Task HomePage_UsesRealPipelineAndReturnsAntiforgeryToken()
     {
         using var client = CreateClient();
@@ -151,6 +163,9 @@ public sealed partial class WebApplicationSmokeTests(
         Assert.Contains("window.addEventListener(\"focus\"", javascript);
         Assert.Contains("window.addEventListener(\"pageshow\"", javascript);
         Assert.Contains("catchUpExchangeRateCard", javascript);
+        Assert.Contains("cardRefreshIntervalMilliseconds = 30_000", javascript);
+        Assert.Contains("window.setInterval", javascript);
+        Assert.Contains("window.clearInterval(refreshIntervalId)", javascript);
         Assert.Contains("isPageUnloading = false;", javascript);
         Assert.Contains("void refreshExchangeRateCard();", javascript);
         Assert.Contains("void startConnection();", javascript);

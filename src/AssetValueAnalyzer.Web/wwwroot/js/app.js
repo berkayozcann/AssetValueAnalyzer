@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let retryTimeoutId = null;
     let refreshPromise = null;
     let startPromise = null;
+    const cardRefreshIntervalMilliseconds = 30_000;
 
     const refreshExchangeRateCard = async () => {
       if (refreshPromise) {
@@ -135,9 +136,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
+    const refreshIntervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshExchangeRateCard();
+      }
+    }, cardRefreshIntervalMilliseconds);
+
     window.addEventListener("beforeunload", () => {
       isPageUnloading = true;
       clearConnectionRetry();
+      window.clearInterval(refreshIntervalId);
 
       void connection.stop();
     }, { once: true });

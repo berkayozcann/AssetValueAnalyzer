@@ -194,6 +194,9 @@ key'ine veya Hangfire/import servislerine bağımlı değildir.
 
 ## Gereksinimler
 
+Docker ile kurulum için Docker Desktop/Engine ve Docker Compose gerekir. Manuel
+kurulum için:
+
 - .NET SDK 10
 - Erişilebilir MSSQL instance'ı
 - Node.js 20 veya üzeri
@@ -235,6 +238,69 @@ ExchangeRateRecurringJob__Enabled
 ExchangeRateRecurringJob__IntervalMinutes
 ```
 
+## Docker Compose ile çalıştırma
+
+Repository kökünde örnek environment dosyasını kopyalayıp iki zorunlu secret'ı
+kendi değerlerinizle değiştirin:
+
+```bash
+cp .env.example .env
+```
+
+`.env` içindeki `MSSQL_SA_PASSWORD` güçlü bir MSSQL `sa` parolası,
+`FINMAKS_API_KEY` ise teslimi değerlendiren kişinin kullanacağı Finmaks anahtarı
+olmalıdır. Gerçek `.env` gitignored'dır; Docker build context'ine veya image'a
+girmez.
+
+Üç servisi sıfırdan build edip sağlık kontrollerini bekleyerek başlatın:
+
+```bash
+docker compose up --build --wait
+```
+
+Başlangıç sırası şöyledir:
+
+```text
+MSSQL healthcheck
+→ Web iki EF migration'ı otomatik uygular
+→ Hangfire ve başlangıç kur senkronizasyonu başlar
+→ Web healthcheck
+→ API veritabanı bağlantısını ve migration durumunu doğrular
+→ API healthcheck
+```
+
+Varsayılan adresler:
+
+- Web: `http://localhost:5271`
+- API: `http://localhost:5272`
+- MSSQL: `localhost,1433`
+- Web/API health: sırasıyla `http://localhost:5271/health` ve
+  `http://localhost:5272/health`
+
+Bu host portları `.env` içindeki `WEB_PORT`, `API_PORT` ve `MSSQL_PORT` ile
+değiştirilebilir. Compose portları yalnız `127.0.0.1` adresine bağlar ve container
+içinde TLS sonlandırmaz; public deployment'ta HTTPS bir reverse proxy veya
+platform ingress katmanında kurulmalıdır. Web/API container'ları tarih ve saat
+sunumu için `Europe/Istanbul` timezone'u ile çalışır.
+
+Image'lar multi-stage build kullanır: pnpm katmanı frontend assetlerini üretir,
+.NET SDK katmanı Web/API publish çıktısını oluşturur, final image'lar yalnız
+ASP.NET Core runtime ve publish çıktısını taşır. Hosttaki yerel klasörleri tek tek
+adlandırmak yerine Docker build context'i allowlist ile yalnız `src/` içeriğini
+alır. Web ve API final container'ları non-root `app` kullanıcısıyla çalışır.
+
+MSSQL verisi ve Web Data Protection anahtarları named volume'larda korunur.
+Container'ları veriyi silmeden durdurup kaldırmak için:
+
+```bash
+docker compose down
+```
+
+`docker compose down --volumes` MSSQL verisini kalıcı olarak siler; yalnız temiz
+kurulum yapmak istediğinizde kullanılmalıdır. Apple Silicon cihazlarda SQL Server
+2022 image'ı `linux/amd64` emülasyonuyla çalıştığı için ilk açılış daha uzun
+sürebilir.
+
 ## İlk kurulum
 
 Repository kökünde:
@@ -253,7 +319,12 @@ dotnet build AssetValueAnalyzer.sln --no-restore
 Inter/Manrope variable fontlarını da `wwwroot` altına kopyalar. Böylece arayüz
 harici bir font CDN'ine ihtiyaç duymadan her makinede aynı tipografiyi kullanır.
 
-Migration'ı doğru MSSQL hedefini kontrol ettikten sonra uygulayın:
+Web hostu her açılışta migration geçmişini kontrol eder ve yalnız bekleyen
+migration'ları otomatik uygular. Migration başarılı olmadan Hangfire, kur
+başlangıç senkronizasyonu veya HTTP sunucusu başlamaz. API şemayı değiştirmez;
+bağlantı kurulamazsa veya migration bekliyorsa anlaşılır startup hatasıyla kapanır.
+
+Migration'ları Web'i başlatmadan önce manuel uygulamak isterseniz fallback komutu:
 
 ```bash
 dotnet ef database update \
@@ -299,6 +370,7 @@ pnpm run css:watch
 ## Ekranlar ve HTTP işlemleri
 
 - `GET /`: Kur kartı, Aylık Varlık Verisi/Yİ-ÜFE Endeks Verisi yükleme alanları ve finansal etki analizi akışı.
+- `GET /health`: Web hostunun startup ve migration aşamasını tamamladığını gösteren health endpointi.
 - `GET /reports/download`: Session'daki tamamlanmış finansal etki raporunu XLSX dosyası olarak indirir.
 - `GET /exchange-rates/card`: SignalR bildirimi sonrası yeniden okunan kur kartı partial'ı.
 - `/hubs/exchange-rates`: Yalnız senkronizasyon tamamlanma bildirimi taşıyan SignalR hub'ı.
@@ -309,6 +381,7 @@ pnpm run css:watch
 - `POST /reports/create`: Finansal etki analizini hesaplayıp raporu oluşturma.
 - `GET /api/exchange-rates/latest`: Ayrı API hostundaki güncel kur listesi.
 - `GET /api/exchange-rates`: Ayrı API hostundaki tarih aralıklı kur listesi.
+- `GET /health`: API hostunun DB şema kontrolünü tamamladıktan sonra sunduğu health endpointi.
 
 Güncel/tek-gün endpointi query parametreleri:
 
@@ -371,9 +444,9 @@ dotnet test AssetValueAnalyzer.sln --no-restore
 
 Son doğrulanan durum:
 
-- Unit test: `43/43`
-- Integration test: `100/100`
-- Toplam: `143/143`
+- Unit test: `44/44`
+- Integration test: `107/107`
+- Toplam: `151/151`
 - Build: `0` hata, `0` uyarı
 
 Testler; XLSX metadata/şablon/duplicate kurallarını, Finmaks
@@ -389,8 +462,8 @@ cron/options doğrulamasını, enabled/disabled DI wiring'ini ve job'ın tarih a
 vermeden yalnız güncel kur senkronizasyonunu çağırmasını kapsar. SignalR testleri
 Web hostunun gerçek notifier'ı kullandığını, hub negotiate route'unu ve refetch
 partial sözleşmesini doğrular.
-On ayrı API HTTP testi; DTO sözleşmesini, tek-gün/aralık filtrelerini, model
-binding davranışını ve
+On bir ayrı API HTTP testi; health endpointini, DTO sözleşmesini, tek-gün/aralık
+filtrelerini, model binding davranışını ve
 `200`, `400`, `404`, `500` cevaplarını gerçek API pipeline'ında doğrular.
 Web ve API test hostları `Testing` ortamında, source-controlled sahte connection
 string ile açılır; user-secrets yüklenmez. Web test hostunda Hangfire ve başlangıç
@@ -400,6 +473,10 @@ gerçek MSSQL, Finmaks veya canlı Hangfire kuyruğuna dokunmaz. MSSQL migration
 kontrolü eski şemaya mevcut bir kur satırı ekleyip checkpoint migration'ına
 yükseltmiş; kur satırının korunduğunu, checkpoint tablosunun boş başladığını ve
 singleton constraint'ini doğruladıktan sonra geçici veritabanını kaldırmıştır.
+İzole Docker Compose teslim kontrolü de boş volume üzerinde iki migration'ın
+uygulanmasını, üç servisin health durumunu, canlı kur backfill/API cevabını ve
+container'lar yeniden oluşturulduğunda MSSQL ile Data Protection volume'larının
+korunmasını doğrulamıştır.
 Gerçek MSSQL'e bağlı API
 smoke kontrolü; en güncel USD/TRY sorgusunda tek DTO, Aralık 2021 aralık sorgusunda
 24 kayıt, geçersiz `limit` için `400` ve bulunmayan tarih için `404` üretmiştir.
@@ -419,3 +496,6 @@ smoke kontrolü; en güncel USD/TRY sorgusunda tek DTO, Aralık 2021 aralık sor
 - Finmaks `HttpClient` loglayıcıları query string içindeki API key'in loglanmaması
   için kaldırılmıştır.
 - Dosyalar en fazla 5 MB olabilir; yalnız XLSX kabul edilir ve ZIP/içerik imzası doğrulanır.
+- Compose, Data Protection key ring'ini kalıcı Docker volume'unda tutar. Public
+  production ortamında bu key ring ayrıca platformun secret/certificate
+  mekanizmasıyla at-rest korunmalıdır.

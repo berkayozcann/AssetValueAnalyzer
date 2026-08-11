@@ -41,6 +41,18 @@ public sealed class ExchangeRatesApiTests(
     }
 
     [Fact]
+    public async Task HealthEndpoint_WhenDatabaseStartupCheckCompleted_ReturnsHealthy()
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync("/health");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
     public async Task GetLatest_WithoutFilters_ReturnsLatestDateDtosWithoutEntityId()
     {
         using var client = CreateClient();

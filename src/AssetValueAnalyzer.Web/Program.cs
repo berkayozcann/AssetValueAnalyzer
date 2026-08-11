@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddHealthChecks();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
@@ -28,6 +29,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<ExchangeRateInitializationHostedService>();
 
 var app = builder.Build();
+var httpsRedirectionEnabled = builder.Configuration.GetValue(
+    "HttpsRedirection:Enabled",
+    true);
 
 await app.Services.ApplyDatabaseMigrationsAsync();
 
@@ -39,13 +43,18 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+if (httpsRedirectionEnabled)
+{
+    app.UseHttpsRedirection();
+}
 app.UseRouting();
 
 app.UseSession();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHealthChecks("/health");
 
 app.MapHub<ExchangeRateHub>("/hubs/exchange-rates");
 
