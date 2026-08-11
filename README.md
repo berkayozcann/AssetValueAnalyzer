@@ -739,6 +739,31 @@ curl "http://localhost:5272/api/exchange-rates?startDate=2021-12-01&endDate=2021
 Başarılı cevaplar JSON dizi döndürür. Geçersiz sorgular `400
 ValidationProblemDetails`, eşleşmeyen sorgular `404 ProblemDetails` döndürür.
 
+### Başarılı cevap alanları
+
+Her iki kur endpoint'i de aşağıdaki alanları içeren JSON nesnelerinden oluşan bir
+dizi döndürür:
+
+| Alan | Açıklama |
+| --- | --- |
+| `baseCurrencyCode` | Finmaks baz para birimi kodu |
+| `foreignCurrencyCode` | Finmaks karşı para birimi kodu |
+| `rateDate` | Kur kaydının ait olduğu tarih |
+| `changeRate` | Finmaks `ChangeRate` değeri |
+| `exchangeRateValue` | Finmaks `ExchangeRate` değeri |
+| `cashChangeRate` | Finmaks `CashChangeRate` değeri; USD/TRY rapor hesaplarında bu alan kullanılır |
+| `cashExchangeRate` | Finmaks `CashExchangeRate` değeri |
+| `centralBankChangeRate` | Finmaks `CentralBankChangeRate` değeri |
+| `centralBankExchangeRate` | Finmaks `CentralBankExchangeRate` değeri |
+| `crossRate` | Finmaks `CrossRate` değeri |
+| `sourceUpdatedAt` | Finmaks kaynağının bildirdiği son güncelleme zamanı |
+| `retrievedAtUtc` | Kaydın AssetValueAnalyzer tarafından alındığı UTC zamanı |
+
+`/api/exchange-rates/latest`, belirtilen tarihteki veya tarih verilmemişse
+veritabanındaki en güncel tarihe ait kayıtları para kodlarına göre sıralar.
+`/api/exchange-rates` ise tarih aralığındaki kayıtları yeniden eskiye; aynı
+tarihteki kayıtları baz ve karşı para koduna göre artan sırada döndürür.
+
 ## Testler
 
 Tüm testleri çalıştırmak için:
@@ -758,8 +783,8 @@ dotnet test tests/AssetValueAnalyzer.IntegrationTests/AssetValueAnalyzer.Integra
 Son doğrulanan durum:
 
 - Unit: `46/46`
-- Integration: `119/119`
-- Toplam: `165/165`
+- Integration: `121/121`
+- Toplam: `167/167`
 - API odaklı integration testleri: `14/14`
 - Build: `0` hata, `0` uyarı
 - İzole sıfır-DB Docker Compose smoke testi: migration, gerçek Finmaks backfill,
@@ -808,13 +833,3 @@ Domain <- Application <- Web / Api
               |
         Infrastructure
 ```
-
-## Bilinen sınırlar
-
-- Authentication ve authorization şartnamede istenmediği için yoktur.
-- Session in-memory olduğu için Web yeniden başlatıldığında taslak rapor kaybolur.
-- Çoklu Web instance'ı için distributed session store yapılandırılmamıştır.
-- Public deployment zorunlu kapsamda değildir; HTTPS dış reverse proxy veya
-  platform ingress katmanında sonlandırılmalıdır.
-- Swagger/OpenAPI UI eklenmemiştir; API sözleşmesi bu README ve integration
-  testlerinde belgelenmiştir.
